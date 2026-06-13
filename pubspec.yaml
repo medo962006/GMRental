@@ -1,5 +1,5 @@
 name: hostel_manager
-description: "Hostel Property Management System - Digital Ledger (Phase 1+2+3)"
+description: "Hostel Property Management System - Phase 1+2+3+3.5"
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -29,6 +29,12 @@ dependencies:
   # Phase 3: PDF generation & printing
   pdf: ^3.11.1
   printing: ^5.13.0
+
+  # Phase 3.5: OTA Code Push
+  shorebird_code_push: ^2.0.6
+
+  # Phase 3.5: App version info
+  package_info_plus: ^8.1.0
 
 dev_dependencies:
   flutter_test:
