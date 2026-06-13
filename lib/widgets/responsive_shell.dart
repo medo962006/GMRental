@@ -8,6 +8,7 @@ import '../screens/masareef_screen.dart';
 import '../screens/tasks_screen.dart';
 import '../screens/operational_costs_screen.dart';
 import '../screens/whatsapp_screen.dart';
+import '../screens/settings_screen.dart';
 
 class ResponsiveShell extends ConsumerWidget {
   const ResponsiveShell({super.key});
@@ -18,14 +19,14 @@ class ResponsiveShell extends ConsumerWidget {
     final isDesktop = width > 900;
     final selectedIndex = ref.watch(selectedIndexProvider);
 
-    // Tenants merged into Rooms — removed separate Tenants tab
     final screens = const <Widget>[
       DashboardScreen(),        // 0
-      RoomsScreen(),            // 1  (was Rooms, now Rooms + Tenants merged)
-      MasareefScreen(),         // 2  (was Tenants, now Masareef)
-      TasksScreen(),            // 3  (was Masareef, now Tasks)
-      OperationalCostsScreen(), // 4  (was Tasks, now Op. Costs)
-      WhatsAppScreen(),         // 5  (was Op. Costs, now WhatsApp)
+      RoomsScreen(),            // 1
+      MasareefScreen(),         // 2
+      TasksScreen(),            // 3
+      OperationalCostsScreen(), // 4
+      WhatsAppScreen(),         // 5
+      SettingsScreen(),         // 6  ← NEW
     ];
 
     final navItems = const <String>[
@@ -35,6 +36,7 @@ class ResponsiveShell extends ConsumerWidget {
       'Tasks',
       'Op. Costs',
       'WhatsApp',
+      'Settings',
     ];
 
     if (isDesktop) {
@@ -77,6 +79,11 @@ class ResponsiveShell extends ConsumerWidget {
                   icon: Icon(Icons.chat_outlined),
                   selectedIcon: Icon(Icons.chat),
                   label: Text('WhatsApp'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.settings_outlined),
+                  selectedIcon: Icon(Icons.settings),
+                  label: Text('Settings'),
                 ),
               ],
             ),
@@ -128,6 +135,11 @@ class ResponsiveShell extends ConsumerWidget {
             icon: Icon(Icons.chat_outlined),
             selectedIcon: Icon(Icons.chat),
             label: 'WhatsApp',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.settings_outlined),
+            selectedIcon: Icon(Icons.settings),
+            label: 'Settings',
           ),
         ],
       ),
