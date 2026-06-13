@@ -1,10 +1,5 @@
-// GENERATED CODE - DO NOT MODIFY BY HAND
-
+// lib/models/tenant.g.dart
 part of 'tenant.dart';
-
-// **************************************************************************
-// JsonSerializableGenerator
-// **************************************************************************
 
 Tenant _$TenantFromJson(Map<String, dynamic> json) => Tenant(
       id: json['id'] as String,
@@ -19,6 +14,9 @@ Tenant _$TenantFromJson(Map<String, dynamic> json) => Tenant(
       dueDate: json['due_date'] == null
           ? null
           : DateTime.parse(json['due_date'] as String),
+      leaseStartDate: json['lease_start_date'] == null
+          ? null
+          : DateTime.parse(json['lease_start_date'] as String),
       createdAt: DateTime.parse(json['created_at'] as String),
     );
 
@@ -33,5 +31,6 @@ Map<String, dynamic> _$TenantToJson(Tenant instance) => <String, dynamic>{
       'insurance_returned': instance.insuranceReturned,
       'payment_status': instance.paymentStatus,
       'due_date': instance.dueDate?.toIso8601String().split('T').first,
+      'lease_start_date': instance.leaseStartDate?.toIso8601String().split('T').first,
       'created_at': instance.createdAt.toIso8601String(),
     };

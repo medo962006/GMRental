@@ -20,6 +20,8 @@ class Tenant {
   final String paymentStatus; // paid | unpaid
   @JsonKey(name: 'due_date')
   final DateTime? dueDate;
+  @JsonKey(name: 'lease_start_date')
+  final DateTime? leaseStartDate;
   @JsonKey(name: 'created_at')
   final DateTime createdAt;
 
@@ -34,6 +36,7 @@ class Tenant {
     this.insuranceReturned = false,
     this.paymentStatus = 'unpaid',
     this.dueDate,
+    this.leaseStartDate,
     required this.createdAt,
   });
 
@@ -51,6 +54,7 @@ class Tenant {
     bool? insuranceReturned,
     String? paymentStatus,
     DateTime? dueDate,
+    DateTime? leaseStartDate,
     DateTime? createdAt,
   }) {
     return Tenant(
@@ -64,6 +68,7 @@ class Tenant {
       insuranceReturned: insuranceReturned ?? this.insuranceReturned,
       paymentStatus: paymentStatus ?? this.paymentStatus,
       dueDate: dueDate ?? this.dueDate,
+      leaseStartDate: leaseStartDate ?? this.leaseStartDate,
       createdAt: createdAt ?? this.createdAt,
     );
   }
