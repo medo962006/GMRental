@@ -1,0 +1,20 @@
+// lib/models/operational_cost.g.dart
+part of 'operational_cost.dart';
+
+OperationalCost _$OperationalCostFromJson(Map<String, dynamic> json) => OperationalCost(
+      id: json['id'] as String,
+      title: json['title'] as String,
+      amount: (json['amount'] as num).toDouble(),
+      costType: json['cost_type'] as String? ?? 'other',
+      billingDate: DateTime.parse(json['billing_date'] as String),
+      createdAt: DateTime.parse(json['created_at'] as String),
+    );
+
+Map<String, dynamic> _$OperationalCostToJson(OperationalCost instance) => <String, dynamic>{
+      'id': instance.id,
+      'title': instance.title,
+      'amount': instance.amount,
+      'cost_type': instance.costType,
+      'billing_date': instance.billingDate.toIso8601String().split('T').first,
+      'created_at': instance.createdAt.toIso8601String(),
+    };

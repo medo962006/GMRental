@@ -1,0 +1,43 @@
+name: hostel_manager
+description: "Hostel Property Management System - Digital Ledger (Phase 1+2+3)"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.3
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # State Management
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+
+  # Database
+  supabase_flutter: ^2.8.0
+
+  # UI / Utils
+  intl: ^0.20.2
+  url_launcher: ^6.3.1
+  image_picker: ^1.1.2
+
+  # Phase 3: HTTP client for WhatsApp webhook
+  dio: ^5.7.0
+
+  # Phase 3: PDF generation & printing
+  pdf: ^3.11.1
+  printing: ^5.13.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  riverpod_generator: ^2.6.3
+  build_runner: ^2.4.13
+  json_annotation: ^4.9.0
+  json_serializable: ^6.9.0
+
+flutter:
+  uses-material-design: true
