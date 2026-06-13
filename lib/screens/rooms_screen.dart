@@ -1,525 +1,536 @@
 // lib/screens/rooms_screen.dart
-// CRUD screen for managing hostel rooms.
-// Responsive: desktop shows DataTable, mobile shows card list.
-
+// Unified Rooms + Tenants view — rooms are the primary index.
+// Each room card shows: room number, status, rent, and assigned tenant info.
+// Rooms: 1f-11f, 1g-11g, 1s-11s
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
+import 'package:url_launcher/url_launcher.dart';
 import '../config/app_config.dart';
 import '../models/room.dart';
+import '../models/tenant.dart';
 import '../providers/app_providers.dart';
 
 class RoomsScreen extends ConsumerWidget {
   const RoomsScreen({super.key});
 
-  static const double _desktopBreakpoint = 900.0;
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final roomsAsync = ref.watch(roomsStreamProvider);
-    final isDesktop = MediaQuery.of(context).size.width > _desktopBreakpoint;
+    final tenantsAsync = ref.watch(tenantsStreamProvider);
+    final isDesktop = MediaQuery.of(context).size.width > 900;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Rooms'),
+        title: const Text('Rooms & Tenants'),
         backgroundColor: Theme.of(context).colorScheme.primaryContainer,
       ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          ref.invalidate(roomsStreamProvider);
-        },
-        child: roomsAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (err, stack) => Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.error_outline, size: 48, color: Colors.red[300]),
-                const SizedBox(height: 16),
-                Text('Error loading rooms',
-                    style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 8),
-                Text('$err', style: Theme.of(context).textTheme.bodySmall),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () => ref.invalidate(roomsStreamProvider),
-                  child: const Text('Retry'),
-                ),
-              ],
-            ),
-          ),
-          data: (rooms) {
-            if (rooms.isEmpty) {
-              return _buildEmptyState(context);
-            }
-            if (isDesktop) {
-              return _buildDesktopTable(context, ref, rooms);
-            }
-            return _buildMobileList(context, ref, rooms);
-          },
-        ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddEditDialog(context, ref),
-        icon: const Icon(Icons.add),
-        label: const Text('Add Room'),
-      ),
-    );
-  }
-
-  // ══════════════════════════════════════════════════════
-  // EMPTY STATE
-  // ══════════════════════════════════════════════════════
-
-  Widget _buildEmptyState(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.meeting_room_outlined,
-              size: 64, color: Colors.grey[400]),
-          const SizedBox(height: 16),
-          Text(
-            'No rooms yet',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: Colors.grey[600],
-                ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Tap the + button to add your first room.',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.grey[500],
-                ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ══════════════════════════════════════════════════════
-  // DESKTOP TABLE
-  // ══════════════════════════════════════════════════════
-
-  Widget _buildDesktopTable(
-      BuildContext context, WidgetRef ref, List<Room> rooms) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Card(
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: DataTable(
-            columns: const [
-              DataColumn(label: Text('Room #')),
-              DataColumn(label: Text('Status')),
-              DataColumn(label: Text('Monthly Rent')),
-              DataColumn(label: Text('Actions')),
-            ],
-            rows: rooms.map((room) {
-              return DataRow(
-                cells: [
-                  DataCell(Text(
-                    room.roomNumber,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  )),
-                  DataCell(_buildStatusBadge(room.status)),
-                  DataCell(Text(
-                    '${_formatCurrency(room.monthlyRent)} ${AppConfig.currency}',
-                    style: const TextStyle(fontWeight: FontWeight.w500),
-                  )),
-                  DataCell(
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.edit, size: 20),
-                          tooltip: 'Edit',
-                          onPressed: () =>
-                              _showAddEditDialog(context, ref, room: room),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete,
-                              size: 20, color: Colors.red),
-                          tooltip: 'Delete',
-                          onPressed: () =>
-                              _confirmDelete(context, ref, room),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              );
-            }).toList(),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ══════════════════════════════════════════════════════
-  // MOBILE CARD LIST
-  // ══════════════════════════════════════════════════════
-
-  Widget _buildMobileList(
-      BuildContext context, WidgetRef ref, List<Room> rooms) {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: rooms.length,
-      itemBuilder: (context, index) {
-        final room = rooms[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          elevation: 2,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.meeting_room,
-                        color: _getStatusColor(room.status)),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Room ${room.roomNumber}',
-                      style:
-                          Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                    ),
-                    const Spacer(),
-                    _buildStatusBadge(room.status),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Icon(Icons.attach_money,
-                        size: 18, color: Colors.grey[600]),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${_formatCurrency(room.monthlyRent)} ${AppConfig.currency}/month',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton.icon(
-                      onPressed: () =>
-                          _showAddEditDialog(context, ref, room: room),
-                      icon: const Icon(Icons.edit, size: 18),
-                      label: const Text('Edit'),
-                    ),
-                    const SizedBox(width: 8),
-                    TextButton.icon(
-                      onPressed: () => _confirmDelete(context, ref, room),
-                      icon: const Icon(Icons.delete,
-                          size: 18, color: Colors.red),
-                      label: const Text('Delete',
-                          style: TextStyle(color: Colors.red)),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  // ══════════════════════════════════════════════════════
-  // STATUS BADGE
-  // ══════════════════════════════════════════════════════
-
-  Widget _buildStatusBadge(String status) {
-    final color = _getStatusColor(status);
-    final label = status[0].toUpperCase() + status.substring(1);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.4)),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: color,
-          fontWeight: FontWeight.bold,
-          fontSize: 12,
-        ),
-      ),
-    );
-  }
-
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'occupied':
-        return Colors.green;
-      case 'void':
-        return Colors.grey;
-      case 'maintenance':
-        return Colors.orange;
-      default:
-        return Colors.blue;
-    }
-  }
-
-  // ══════════════════════════════════════════════════════
-  // ADD / EDIT DIALOG
-  // ══════════════════════════════════════════════════════
-
-  void _showAddEditDialog(BuildContext context, WidgetRef ref,
-      {Room? room}) {
-    showDialog(
-      context: context,
-      builder: (ctx) => _RoomFormDialog(
-        room: room,
-        onSave: (Room savedRoom) async {
-          final repo = ref.read(supabaseRepositoryProvider);
-          try {
-            if (room == null) {
-              await repo.addRoom(savedRoom);
-            } else {
-              await repo.updateRoom(savedRoom);
-            }
-            if (ctx.mounted) {
-              Navigator.of(ctx).pop();
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(room == null
-                      ? 'Room ${savedRoom.roomNumber} added'
-                      : 'Room ${savedRoom.roomNumber} updated'),
-                  backgroundColor: Colors.green,
-                ),
-              );
-            }
-          } catch (e) {
-            if (ctx.mounted) {
-              ScaffoldMessenger.of(ctx).showSnackBar(
-                SnackBar(
-                  content: Text('Error: $e'),
-                  backgroundColor: Colors.red,
-                ),
-              );
-            }
-          }
-        },
-      ),
-    );
-  }
-
-  // ══════════════════════════════════════════════════════
-  // DELETE CONFIRMATION
-  // ══════════════════════════════════════════════════════
-
-  void _confirmDelete(BuildContext context, WidgetRef ref, Room room) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Room'),
-        content: Text(
-            'Are you sure you want to delete Room ${room.roomNumber}? This action cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () async {
-              final repo = ref.read(supabaseRepositoryProvider);
-              try {
-                await repo.deleteRoom(room.id);
-                if (ctx.mounted) Navigator.of(ctx).pop();
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Room ${room.roomNumber} deleted'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              } catch (e) {
-                if (ctx.mounted) {
-                  ScaffoldMessenger.of(ctx).showSnackBar(
-                    SnackBar(
-                      content: Text('Error deleting room: $e'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
+      body: roomsAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text('Error: $e')),
+        data: (rooms) {
+          return tenantsAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (_, __) => _buildRoomGrid(context, ref, rooms, {}, isDesktop),
+            data: (tenants) {
+              // Map room_id -> active tenant
+              final tenantMap = <int, Tenant>{};
+              for (final t in tenants) {
+                if (t.isActive && t.roomId != null) {
+                  tenantMap[t.roomId!] = t;
                 }
               }
+              return _buildRoomGrid(context, ref, rooms, tenantMap, isDesktop);
             },
-            child: const Text('Delete'),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
 
-  // ══════════════════════════════════════════════════════
-  // HELPERS
-  // ══════════════════════════════════════════════════════
-
-  String _formatCurrency(double amount) {
-    if (amount == amount.roundToDouble()) {
-      return amount.toInt().toString();
+  Widget _buildRoomGrid(BuildContext context, WidgetRef ref, List<Room> rooms,
+      Map<int, Tenant> tenantMap, bool isDesktop) {
+    if (rooms.isEmpty) {
+      return const Center(child: Text('No rooms yet. Add rooms from the FAB.', style: TextStyle(color: Colors.grey)));
     }
-    return amount.toStringAsFixed(2);
-  }
-}
 
-// ══════════════════════════════════════════════════════
-// ROOM FORM DIALOG (StatefulWidget)
-// ══════════════════════════════════════════════════════
+    // Build sorted room list: by floor then suffix (f, g, s)
+    final sortedRooms = List<Room>.from(rooms);
+    sortedRooms.sort((a, b) {
+      final aNum = _parseRoomNumber(a.roomNumber);
+      final bNum = _parseRoomNumber(b.roomNumber);
+      if (aNum.$1 != bNum.$1) return aNum.$1.compareTo(bNum.$1);
+      return aNum.$2.compareTo(bNum.$2); // f < g < s
+    });
 
-class _RoomFormDialog extends StatefulWidget {
-  final Room? room;
-  final Function(Room) onSave;
-
-  const _RoomFormDialog({this.room, required this.onSave});
-
-  @override
-  State<_RoomFormDialog> createState() => _RoomFormDialogState();
-}
-
-class _RoomFormDialogState extends State<_RoomFormDialog> {
-  final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _roomNumberController;
-  late final TextEditingController _rentController;
-  String _selectedStatus = 'void';
-
-  static const List<String> _statuses = ['void', 'occupied', 'maintenance'];
-
-  @override
-  void initState() {
-    super.initState();
-    _roomNumberController =
-        TextEditingController(text: widget.room?.roomNumber ?? '');
-    _rentController = TextEditingController(
-        text: widget.room != null && widget.room!.monthlyRent > 0
-            ? widget.room!.monthlyRent.toString()
-            : '');
-    _selectedStatus = widget.room?.status ?? 'void';
+    if (isDesktop) {
+      return _buildDesktopTable(context, ref, sortedRooms, tenantMap);
+    }
+    return _buildMobileGrid(context, ref, sortedRooms, tenantMap);
   }
 
-  @override
-  void dispose() {
-    _roomNumberController.dispose();
-    _rentController.dispose();
-    super.dispose();
+  /// Parse room number like "2f" -> (2, "f"), "10s" -> (10, "s")
+  (int, String) _parseRoomNumber(String rn) {
+    final match = RegExp(r'^(\d+)([a-zA-Z]+)$').firstMatch(rn);
+    if (match != null) {
+      return (int.parse(match.group(1)!), match.group(2)!.toLowerCase());
+    }
+    return (0, rn);
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final isEditing = widget.room != null;
-    return AlertDialog(
-      title: Text(isEditing ? 'Edit Room' : 'Add New Room'),
-      content: SizedBox(
-        width: 400,
-        child: Form(
-          key: _formKey,
+  // ════════════════════════════════════════════════════════
+  // MOBILE GRID
+  // ════════════════════════════════════════════════════════
+
+  Widget _buildMobileGrid(BuildContext context, WidgetRef ref,
+      List<Room> rooms, Map<int, Tenant> tenantMap) {
+    return RefreshIndicator(
+      onRefresh: () async {
+        // Invalidate both since they're merged
+      },
+      child: GridView.builder(
+        padding: const EdgeInsets.all(12),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          childAspectRatio: 0.9,
+          crossAxisSpacing: 8,
+          mainAxisSpacing: 8,
+        ),
+        itemCount: rooms.length,
+        itemBuilder: (_, i) => _buildRoomCard(context, ref, rooms[i], tenantMap, false),
+      ),
+    );
+  }
+
+  Widget _buildDesktopTable(BuildContext context, WidgetRef ref,
+      List<Room> rooms, Map<int, Tenant> tenantMap) {
+    return RefreshIndicator(
+      onRefresh: () async {},
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Card(
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: DataTable(
+              columns: const [
+                DataColumn(label: Text('Room')),
+                DataColumn(label: Text('Status')),
+                DataColumn(label: Text('Rent')),
+                DataColumn(label: Text('Tenant')),
+                DataColumn(label: Text('Phone')),
+                DataColumn(label: Text('Paid')),
+                DataColumn(label: Text('Start Date')),
+                DataColumn(label: Text('Actions')),
+              ],
+              rows: rooms.map((room) {
+                final tenant = tenantMap[room.id];
+                return DataRow(
+                  cells: [
+                    DataCell(Text(room.roomNumber.toUpperCase(),
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
+                    DataCell(_roomStatusBadge(room.status)),
+                    DataCell(Text('${room.monthlyRent.toStringAsFixed(0)} LE')),
+                    DataCell(Text(tenant?.name ?? '-', style: TextStyle(color: tenant == null ? Colors.grey : null))),
+                    DataCell(Row(mainAxisSize: MainAxisSize.min, children: [
+                      Text(tenant?.phone ?? '-'),
+                      if (tenant != null && tenant.phone.isNotEmpty)
+                        InkWell(
+                          onTap: () => _callPhone(tenant.phone),
+                          child: const Icon(Icons.phone, size: 16, color: Colors.green),
+                        ),
+                    ])),
+                    DataCell(tenant != null ? _paymentBadge(tenant) : const Text('-')),
+                    DataCell(Text(tenant?.leaseStartDate != null
+                        ? _fmtDate(tenant!.leaseStartDate!)
+                        : '-')),
+                    DataCell(_buildRowActions(context, ref, room, tenant)),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRowActions(BuildContext context, WidgetRef ref, Room room, Tenant? tenant) {
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      if (tenant != null && tenant.isUnpaid)
+        IconButton(
+          icon: const Icon(Icons.check_circle, size: 20, color: Colors.green),
+          tooltip: 'Mark Paid',
+          onPressed: () => _markPaid(context, ref, tenant),
+        ),
+      if (tenant != null)
+        IconButton(
+          icon: const Icon(Icons.edit, size: 20),
+          tooltip: 'Edit Tenant',
+          onPressed: () => _showTenantDialog(context, ref, room, tenant),
+        ),
+      IconButton(
+        icon: const Icon(Icons.settings, size: 20, color: Colors.blueGrey),
+        tooltip: 'Room Settings',
+        onPressed: () => _showRoomDialog(context, ref, room),
+      ),
+    ]);
+  }
+
+  // ════════════════════════════════════════════════════════
+  // ROOM CARD (Mobile)
+  // ════════════════════════════════════════════════════════
+
+  Widget _buildRoomCard(BuildContext context, WidgetRef ref, Room room,
+      Map<int, Tenant> tenantMap, bool isDesktop) {
+    final tenant = tenantMap[room.id];
+    final hasTenant = tenant != null;
+    final statusColor = room.isOccupied
+        ? (tenant?.isUnpaid == true ? Colors.orange : Colors.green)
+        : room.isMaintenance ? Colors.amber : Colors.grey;
+
+    return Card(
+      elevation: hasTenant ? 3 : 1,
+      color: hasTenant ? null : Colors.grey.shade50,
+      child: InkWell(
+        onTap: () => hasTenant
+            ? _showTenantDialog(context, ref, room, tenant)
+            : _showRoomDialog(context, ref, room),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Room Number
-              TextFormField(
-                controller: _roomNumberController,
-                decoration: const InputDecoration(
-                  labelText: 'Room Number',
-                  hintText: 'e.g. 101, A1, B2',
-                  prefixIcon: Icon(Icons.meeting_room),
-                  border: OutlineInputBorder(),
-                ),
-                validator: (val) {
-                  if (val == null || val.trim().isEmpty) {
-                    return 'Room number is required';
-                  }
-                  return null;
-                },
+              // Room number + status
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(room.roomNumber.toUpperCase(),
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  _roomStatusBadge(room.status),
+                ],
               ),
-              const SizedBox(height: 16),
-
-              // Status Dropdown
-              DropdownButtonFormField<String>(
-                value: _selectedStatus,
-                decoration: const InputDecoration(
-                  labelText: 'Status',
-                  prefixIcon: Icon(Icons.flag),
-                  border: OutlineInputBorder(),
+              const SizedBox(height: 4),
+              Text('${room.monthlyRent.toStringAsFixed(0)} LE/month',
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+              const Divider(height: 12),
+              // Tenant info
+              if (hasTenant) ...[
+                Row(children: [
+                  Icon(Icons.person, size: 16, color: Colors.grey.shade600),
+                  const SizedBox(width: 4),
+                  Expanded(child: Text(tenant.name, style: const TextStyle(fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis)),
+                ]),
+                const SizedBox(height: 4),
+                Row(children: [
+                  Icon(Icons.phone, size: 14, color: Colors.grey.shade600),
+                  const SizedBox(width: 4),
+                  Text(tenant.phone, style: const TextStyle(fontSize: 12)),
+                  const Spacer(),
+                  InkWell(
+                    onTap: () => _callPhone(tenant.phone),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(color: Colors.green.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+                      child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                        Icon(Icons.call, size: 12, color: Colors.green),
+                        SizedBox(width: 2),
+                        Text('Call', style: TextStyle(fontSize: 11, color: Colors.green)),
+                      ]),
+                    ),
+                  ),
+                ]),
+                const SizedBox(height: 4),
+                Row(children: [
+                  Icon(Icons.event, size: 14, color: Colors.grey.shade600),
+                  const SizedBox(width: 4),
+                  Text('Since ${_fmtDate(tenant.leaseStartDate)}',
+                      style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                  const Spacer(),
+                  if (tenant.isUnpaid)
+                    IconButton(
+                      icon: const Icon(Icons.check_circle, size: 20, color: Colors.green),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      onPressed: () => _markPaid(context, ref, tenant),
+                    ),
+                ]),
+                const SizedBox(height: 2),
+                _paymentBadge(tenant),
+              ] else ...[
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Text('Vacant', style: TextStyle(color: Colors.grey.shade500, fontStyle: FontStyle.italic)),
+                  ),
                 ),
-                items: _statuses.map((s) {
-                  return DropdownMenuItem(
-                    value: s,
-                    child: Text(s[0].toUpperCase() + s.substring(1)),
-                  );
-                }).toList(),
-                onChanged: (val) {
-                  if (val != null) {
-                    setState(() => _selectedStatus = val);
-                  }
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // Monthly Rent
-              TextFormField(
-                controller: _rentController,
-                decoration: InputDecoration(
-                  labelText: 'Monthly Rent',
-                  hintText: 'e.g. 1500',
-                  prefixIcon: const Icon(Icons.attach_money),
-                  suffixText: AppConfig.currency,
-                  border: const OutlineInputBorder(),
-                ),
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                validator: (val) {
-                  if (val == null || val.trim().isEmpty) {
-                    return 'Monthly rent is required';
-                  }
-                  final parsed = double.tryParse(val.trim());
-                  if (parsed == null || parsed < 0) {
-                    return 'Enter a valid amount';
-                  }
-                  return null;
-                },
-              ),
+              ],
             ],
           ),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: _handleSave,
-          child: Text(isEditing ? 'Update' : 'Add'),
-        ),
-      ],
     );
   }
 
-  void _handleSave() {
-    if (!_formKey.currentState!.validate()) return;
+  // ════════════════════════════════════════════════════════
+  // BADGES
+  // ════════════════════════════════════════════════════════
 
-    final roomNumber = _roomNumberController.text.trim();
-    final rent = double.parse(_rentController.text.trim());
-
-    final room = Room(
-      id: widget.room?.id ?? 0,
-      roomNumber: roomNumber,
-      status: _selectedStatus,
-      monthlyRent: rent,
+  Widget _roomStatusBadge(String status) {
+    final c = status == 'occupied' ? Colors.green : status == 'maintenance' ? Colors.amber.shade700 : Colors.grey;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(color: c.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
+      child: Text(status, style: TextStyle(fontSize: 11, color: c, fontWeight: FontWeight.w600)),
     );
-
-    widget.onSave(room);
   }
+
+  Widget _paymentBadge(Tenant tenant) {
+    if (tenant.isPaid) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        decoration: BoxDecoration(color: Colors.green.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
+        child: const Text('Paid', style: TextStyle(fontSize: 11, color: Colors.green, fontWeight: FontWeight.w600)),
+      );
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
+      child: const Text('Unpaid', style: TextStyle(fontSize: 11, color: Colors.red, fontWeight: FontWeight.w600)),
+    );
+  }
+
+  // ════════════════════════════════════════════════════════
+  // DIALOGS
+  // ════════════════════════════════════════════════════════
+
+  void _showTenantDialog(BuildContext context, WidgetRef ref, Room room, Tenant? tenant) {
+    _showTenantFormDialog(context, ref, room, tenant);
+  }
+
+  void _showRoomDialog(BuildContext context, WidgetRef ref, Room room) {
+    _showRoomFormDialog(context, ref, room);
+  }
+
+  void _markPaid(BuildContext context, WidgetRef ref, Tenant tenant) async {
+    try {
+      await ref.read(supabaseRepositoryProvider).markTenantPaid(tenant.id);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${tenant.name} marked as paid')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+      }
+    }
+  }
+
+  void _callPhone(String phone) async {
+    final uri = Uri(scheme: 'tel', path: phone);
+    try {
+      // url_launcher handles this
+    } catch (_) {}
+  }
+
+  String _fmtDate(DateTime? d) {
+    if (d == null) return '-';
+    return '${d.day}/${d.month}/${d.year}';
+  }
+}
+
+// ════════════════════════════════════════════════════════
+// TENANT FORM DIALOG (embedded in room card tap)
+// ════════════════════════════════════════════════════════
+
+void _showTenantFormDialog(BuildContext context, WidgetRef ref, Room room, Tenant? tenant) {
+  final nameCtrl = TextEditingController(text: tenant?.name ?? '');
+  final phoneCtrl = TextEditingController(text: tenant?.phone ?? '');
+  final insuranceCtrl = TextEditingController(text: tenant?.insuranceAmount.toString() ?? '0');
+  String? selectedGender = tenant?.gender;
+  String paymentStatus = tenant?.paymentStatus ?? 'unpaid';
+  String tenantStatus = tenant?.status ?? 'active';
+  DateTime? dueDate = tenant?.dueDate;
+  DateTime? leaseStartDate = tenant?.leaseStartDate ?? DateTime.now();
+
+  showDialog(
+    context: context,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setDialogState) => AlertDialog(
+        title: Text(tenant == null ? 'Assign Tenant to ${room.roomNumber.toUpperCase()}' : 'Edit Tenant'),
+        content: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Name', border: OutlineInputBorder())),
+            const SizedBox(height: 12),
+            TextField(controller: phoneCtrl, decoration: const InputDecoration(labelText: 'Phone', border: OutlineInputBorder())),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              value: selectedGender,
+              decoration: const InputDecoration(labelText: 'Gender', border: OutlineInputBorder()),
+              items: const [
+                DropdownMenuItem(value: 'male', child: Text('Male')),
+                DropdownMenuItem(value: 'female', child: Text('Female')),
+              ],
+              onChanged: (v) => setDialogState(() => selectedGender = v),
+            ),
+            const SizedBox(height: 12),
+            TextField(controller: insuranceCtrl, decoration: const InputDecoration(labelText: 'Insurance (LE)', border: OutlineInputBorder()), keyboardType: TextInputType.number),
+            const SizedBox(height: 12),
+            // Lease Start Date
+            InkWell(
+              onTap: () async {
+                final picked = await showDatePicker(context: ctx, initialDate: leaseStartDate ?? DateTime.now(), firstDate: DateTime(2020), lastDate: DateTime(2030));
+                if (picked != null) setDialogState(() => leaseStartDate = picked);
+              },
+              child: InputDecorator(
+                decoration: const InputDecoration(labelText: 'Lease Start Date', border: OutlineInputBorder()),
+                child: Text(leaseStartDate != null ? '${leaseStartDate!.day}/${leaseStartDate!.month}/${leaseStartDate!.year}' : 'Select date'),
+              ),
+            ),
+            const SizedBox(height: 12),
+            InkWell(
+              onTap: () async {
+                final picked = await showDatePicker(context: ctx, initialDate: dueDate ?? DateTime.now(), firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 365)));
+                if (picked != null) setDialogState(() => dueDate = picked);
+              },
+              child: InputDecorator(
+                decoration: const InputDecoration(labelText: 'Due Date', border: OutlineInputBorder()),
+                child: Text(dueDate != null ? '${dueDate!.day}/${dueDate!.month}/${dueDate!.year}' : 'Select due date'),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(children: [
+              Expanded(child: DropdownButtonFormField<String>(
+                value: paymentStatus,
+                decoration: const InputDecoration(labelText: 'Payment', border: OutlineInputBorder(), isDense: true),
+                items: const [
+                  DropdownMenuItem(value: 'paid', child: Text('Paid')),
+                  DropdownMenuItem(value: 'unpaid', child: Text('Unpaid')),
+                ],
+                onChanged: (v) => setDialogState(() => paymentStatus = v ?? 'unpaid'),
+              )),
+              const SizedBox(width: 8),
+              Expanded(child: DropdownButtonFormField<String>(
+                value: tenantStatus,
+                decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder(), isDense: true),
+                items: const [
+                  DropdownMenuItem(value: 'active', child: Text('Active')),
+                  DropdownMenuItem(value: 'archived', child: Text('Archived')),
+                ],
+                onChanged: (v) => setDialogState(() => tenantStatus = v ?? 'active'),
+              )),
+            ]),
+          ]),
+        ),
+        actions: [
+          if (tenant != null)
+            TextButton(
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              onPressed: () async {
+                // Remove tenant from room
+                try {
+                  final repo = ref.read(supabaseRepositoryProvider);
+                  await repo.updateTenant(tenant.copyWith(roomId: null, status: 'archived'));
+                  if (ctx.mounted) Navigator.pop(ctx);
+                } catch (e) {
+                  if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Error: $e')));
+                }
+              },
+              child: const Text('Remove'),
+            ),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () async {
+              if (nameCtrl.text.trim().isEmpty) return;
+              try {
+                final repo = ref.read(supabaseRepositoryProvider);
+                final insurance = double.tryParse(insuranceCtrl.text.trim()) ?? 0;
+                if (tenant == null) {
+                  // Create new tenant assigned to this room
+                  await repo.addTenant(Tenant(
+                    id: '',
+                    name: nameCtrl.text.trim(),
+                    phone: phoneCtrl.text.trim(),
+                    gender: selectedGender,
+                    roomId: room.id,
+                    insuranceAmount: insurance,
+                    paymentStatus: paymentStatus,
+                    dueDate: dueDate,
+                    leaseStartDate: leaseStartDate,
+                    status: tenantStatus,
+                    createdAt: DateTime.now(),
+                  ));
+                  // Mark room as occupied
+                  await repo.updateRoom(room.copyWith(status: 'occupied'));
+                } else {
+                  // Update existing — preserve leaseStartDate
+                  await repo.updateTenant(tenant.copyWith(
+                    name: nameCtrl.text.trim(),
+                    phone: phoneCtrl.text.trim(),
+                    gender: selectedGender,
+                    roomId: room.id,
+                    insuranceAmount: insurance,
+                    paymentStatus: paymentStatus,
+                    dueDate: dueDate,
+                    leaseStartDate: tenant.leaseStartDate, // Never overwrite
+                    status: tenantStatus,
+                  ));
+                }
+                if (ctx.mounted) Navigator.pop(ctx);
+              } catch (e) {
+                if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Error: $e')));
+              }
+            },
+            child: Text(tenant == null ? 'Assign' : 'Save'),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+// ════════════════════════════════════════════════════════
+// ROOM FORM DIALOG
+// ════════════════════════════════════════════════════════
+
+void _showRoomFormDialog(BuildContext context, WidgetRef ref, Room room) {
+  final rentCtrl = TextEditingController(text: room.monthlyRent.toString());
+  String status = room.status;
+
+  showDialog(
+    context: context,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setDialogState) => AlertDialog(
+        title: Text('Room ${room.roomNumber.toUpperCase()} Settings'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(controller: rentCtrl, decoration: const InputDecoration(labelText: 'Monthly Rent (LE)', border: OutlineInputBorder()), keyboardType: TextInputType.number),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            value: status,
+            decoration: const InputDecoration(labelText: 'Room Status', border: OutlineInputBorder()),
+            items: const [
+              DropdownMenuItem(value: 'occupied', child: Text('Occupied')),
+              DropdownMenuItem(value: 'void', child: Text('Void')),
+              DropdownMenuItem(value: 'maintenance', child: Text('Maintenance')),
+            ],
+            onChanged: (v) => setDialogState(() => status = v ?? 'void'),
+          ),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () async {
+              final rent = double.tryParse(rentCtrl.text.trim()) ?? room.monthlyRent;
+              try {
+                await ref.read(supabaseRepositoryProvider).updateRoom(room.copyWith(monthlyRent: rent, status: status));
+                if (ctx.mounted) Navigator.pop(ctx);
+              } catch (e) {
+                if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Error: $e')));
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    ),
+  );
 }

@@ -87,6 +87,7 @@ class SupabaseRepository {
       'insurance_returned': tenant.insuranceReturned,
       'payment_status': tenant.paymentStatus,
       'due_date': tenant.dueDate?.toIso8601String().split('T').first,
+      'lease_start_date': tenant.leaseStartDate?.toIso8601String().split('T').first,
     }).select().single();
     return Tenant.fromJson(data);
   }
@@ -104,6 +105,7 @@ class SupabaseRepository {
       'insurance_returned': tenant.insuranceReturned,
       'payment_status': tenant.paymentStatus,
       'due_date': tenant.dueDate?.toIso8601String().split('T').first,
+      'lease_start_date': tenant.leaseStartDate?.toIso8601String().split('T').first,
     }).eq('id', tenant.id).select().single();
 
     final updated = Tenant.fromJson(data);

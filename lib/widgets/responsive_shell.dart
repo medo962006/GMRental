@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/app_providers.dart';
 import '../screens/dashboard_screen.dart';
 import '../screens/rooms_screen.dart';
-import '../screens/tenants_screen.dart';
 import '../screens/masareef_screen.dart';
 import '../screens/tasks_screen.dart';
 import '../screens/operational_costs_screen.dart';
@@ -19,20 +18,19 @@ class ResponsiveShell extends ConsumerWidget {
     final isDesktop = width > 900;
     final selectedIndex = ref.watch(selectedIndexProvider);
 
+    // Tenants merged into Rooms — removed separate Tenants tab
     final screens = const <Widget>[
-      DashboardScreen(),
-      RoomsScreen(),
-      TenantsScreen(),
-      MasareefScreen(),
-      TasksScreen(),
-      OperationalCostsScreen(),
-      WhatsAppScreen(),
+      DashboardScreen(),        // 0
+      RoomsScreen(),            // 1  (was Rooms, now Rooms + Tenants merged)
+      MasareefScreen(),         // 2  (was Tenants, now Masareef)
+      TasksScreen(),            // 3  (was Masareef, now Tasks)
+      OperationalCostsScreen(), // 4  (was Tasks, now Op. Costs)
+      WhatsAppScreen(),         // 5  (was Op. Costs, now WhatsApp)
     ];
 
     final navItems = const <String>[
       'Dashboard',
       'Rooms',
-      'Tenants',
       'Masareef',
       'Tasks',
       'Op. Costs',
@@ -59,11 +57,6 @@ class ResponsiveShell extends ConsumerWidget {
                   icon: Icon(Icons.bed_outlined),
                   selectedIcon: Icon(Icons.bed),
                   label: Text('Rooms'),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(Icons.people_outline),
-                  selectedIcon: Icon(Icons.people),
-                  label: Text('Tenants'),
                 ),
                 NavigationRailDestination(
                   icon: Icon(Icons.receipt_long_outlined),
@@ -115,11 +108,6 @@ class ResponsiveShell extends ConsumerWidget {
             icon: Icon(Icons.bed_outlined),
             selectedIcon: Icon(Icons.bed),
             label: 'Rooms',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.people_outline),
-            selectedIcon: Icon(Icons.people),
-            label: 'Tenants',
           ),
           NavigationDestination(
             icon: Icon(Icons.receipt_long_outlined),
