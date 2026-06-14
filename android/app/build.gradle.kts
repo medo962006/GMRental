@@ -21,7 +21,7 @@ android {
 
     defaultConfig {
         applicationId = "com.gmr.hostel_management"
-        minSdk = 21
+        minSdk = flutter.minSdkVersion
         targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
