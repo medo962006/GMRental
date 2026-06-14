@@ -1,4 +1,5 @@
 // lib/screens/operational_costs_screen.dart
+// Mobile-first operational costs tracking.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/operational_cost.dart';
@@ -10,7 +11,6 @@ class OperationalCostsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final costsAsync = ref.watch(operationalCostsStreamProvider);
-    final isDesktop = MediaQuery.of(context).size.width > 900;
 
     return Scaffold(
       appBar: AppBar(
@@ -28,21 +28,40 @@ class OperationalCostsScreen extends ConsumerWidget {
 
           return Column(
             children: [
-              // Summary cards
-              Padding(
+              // Summary — horizontal scrollable chips on mobile
+              Container(
                 padding: const EdgeInsets.all(12),
-                child: isDesktop
-                    ? Row(children: _summaryCards(total, salary, ads, subs))
-                    : Column(children: _summaryCards(total, salary, ads, subs)),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _summaryChip('Total', total, Colors.purple, Icons.account_balance),
+                      const SizedBox(width: 8),
+                      _summaryChip('Salaries', salary, Colors.blue, Icons.people),
+                      const SizedBox(width: 8),
+                      _summaryChip('Ad Spend', ads, Colors.orange, Icons.campaign),
+                      const SizedBox(width: 8),
+                      _summaryChip('Subs', subs, Colors.green, Icons.subscriptions),
+                    ],
+                  ),
+                ),
               ),
               const Divider(height: 1),
-              // Data list/table
+              // Cost list
               Expanded(
                 child: costs.isEmpty
-                    ? const Center(child: Text('No operational costs recorded', style: TextStyle(color: Colors.grey)))
+                    ? const Center(
+                        child: Text('No operational costs recorded',
+                            style: TextStyle(color: Colors.grey)))
                     : RefreshIndicator(
-                        onRefresh: () async => ref.invalidate(operationalCostsStreamProvider),
-                        child: isDesktop ? _buildDataTable(context, ref, costs) : _buildCardList(context, ref, costs),
+                        onRefresh: () async =>
+                            ref.invalidate(operationalCostsStreamProvider),
+                        child: ListView.builder(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          itemCount: costs.length,
+                          itemBuilder: (_, i) => _buildCostCard(context, ref, costs[i]),
+                        ),
                       ),
               ),
             ],
@@ -57,88 +76,110 @@ class OperationalCostsScreen extends ConsumerWidget {
     );
   }
 
-  List<Widget> _summaryCards(double total, double salary, double ads, double subs) {
-    return [
-      _summaryCard('Total', total, Colors.purple, Icons.account_balance),
-      _summaryCard('Salaries', salary, Colors.blue, Icons.people),
-      _summaryCard('Ad Spend', ads, Colors.orange, Icons.campaign),
-      _summaryCard('Subscriptions', subs, Colors.green, Icons.subscriptions),
-    ];
+  Widget _summaryChip(String label, double amount, Color color, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, size: 18, color: color),
+        const SizedBox(width: 6),
+        Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('${amount.toStringAsFixed(0)} LE',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: color)),
+          Text(label, style: TextStyle(fontSize: 11, color: color.withValues(alpha: 0.8))),
+        ]),
+      ]),
+    );
   }
 
-  Widget _summaryCard(String label, double amount, Color color, IconData icon) {
-    return Expanded(
-      child: Card(
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            children: [Icon(icon, color: color, size: 20), const SizedBox(height: 4),
-              Text('${amount.toStringAsFixed(0)} LE', style: TextStyle(fontWeight: FontWeight.bold, color: color)),
-              Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
-            ],
-          ),
+  Widget _buildCostCard(BuildContext context, WidgetRef ref, OperationalCost c) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            // Type icon
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: _typeColor(c.costType).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(_typeIcon(c.costType), size: 20, color: _typeColor(c.costType)),
+            ),
+            const SizedBox(width: 12),
+            // Title + date
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(c.title,
+                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                      overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 2),
+                  Row(children: [
+                    _typeBadge(c.costType),
+                    const SizedBox(width: 6),
+                    Text('${c.billingDate.day}/${c.billingDate.month}/${c.billingDate.year}',
+                        style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                  ]),
+                ],
+              ),
+            ),
+            // Amount + delete
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text('${c.amount.toStringAsFixed(0)} LE',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                const SizedBox(height: 4),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, size: 18, color: Colors.red),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  onPressed: () => _confirmDelete(context, ref, c),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildDataTable(BuildContext context, WidgetRef ref, List<OperationalCost> costs) {
-    return SingleChildScrollView(
-      child: DataTable(
-        columns: const [
-          DataColumn(label: Text('Title')),
-          DataColumn(label: Text('Amount')),
-          DataColumn(label: Text('Type')),
-          DataColumn(label: Text('Date')),
-          DataColumn(label: Text('Actions')),
-        ],
-        rows: costs.map((c) => DataRow(cells: [
-          DataCell(Text(c.title)),
-          DataCell(Text('${c.amount.toStringAsFixed(0)} LE')),
-          DataCell(_typeBadge(c.costType)),
-          DataCell(Text('${c.billingDate.day}/${c.billingDate.month}/${c.billingDate.year}')),
-          DataCell(Row(mainAxisSize: MainAxisSize.min, children: [
-            IconButton(icon: const Icon(Icons.edit, size: 18), onPressed: () => _showAddDialog(context, ref, cost: c)),
-            IconButton(icon: const Icon(Icons.delete, size: 18), onPressed: () => _confirmDelete(context, ref, c)),
-          ])),
-        ])).toList(),
-      ),
-    );
-  }
-
-  Widget _buildCardList(BuildContext context, WidgetRef ref, List<OperationalCost> costs) {
-    return ListView.builder(
-      padding: const EdgeInsets.all(12),
-      itemCount: costs.length,
-      itemBuilder: (_, i) {
-        final c = costs[i];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 8),
-          child: ListTile(
-            title: Text(c.title),
-            subtitle: Row(children: [
-              _typeBadge(c.costType),
-              const SizedBox(width: 8),
-              Text('${c.billingDate.day}/${c.billingDate.month}'),
-            ]),
-            trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-              Text('${c.amount.toStringAsFixed(0)} LE', style: const TextStyle(fontWeight: FontWeight.bold)),
-              IconButton(icon: const Icon(Icons.delete, size: 18), onPressed: () => _confirmDelete(context, ref, c)),
-            ]),
-          ),
-        );
-      },
-    );
-  }
-
   Widget _typeBadge(String type) {
-    final color = type == 'salary' ? Colors.blue : type == 'ad_spend' ? Colors.orange : type == 'subscription' ? Colors.green : Colors.grey;
+    final c = _typeColor(type);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
-      child: Text(type, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600)),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      decoration: BoxDecoration(color: c.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
+      child: Text(type,
+          style: TextStyle(fontSize: 10, color: c, fontWeight: FontWeight.w600)),
     );
+  }
+
+  Color _typeColor(String type) {
+    return type == 'salary'
+        ? Colors.blue
+        : type == 'ad_spend'
+            ? Colors.orange
+            : type == 'subscription'
+                ? Colors.green
+                : Colors.grey;
+  }
+
+  IconData _typeIcon(String type) {
+    return type == 'salary'
+        ? Icons.people
+        : type == 'ad_spend'
+            ? Icons.campaign
+            : type == 'subscription'
+                ? Icons.subscriptions
+                : Icons.attach_money;
   }
 
   void _showAddDialog(BuildContext context, WidgetRef ref, {OperationalCost? cost}) {
@@ -154,9 +195,14 @@ class OperationalCostsScreen extends ConsumerWidget {
           title: Text(cost == null ? 'Add Cost' : 'Edit Cost'),
           content: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              TextField(controller: titleCtrl, decoration: const InputDecoration(labelText: 'Title', border: OutlineInputBorder())),
+              TextField(
+                  controller: titleCtrl,
+                  decoration: const InputDecoration(labelText: 'Title', border: OutlineInputBorder())),
               const SizedBox(height: 12),
-              TextField(controller: amountCtrl, decoration: const InputDecoration(labelText: 'Amount (LE)', border: OutlineInputBorder()), keyboardType: TextInputType.number),
+              TextField(
+                  controller: amountCtrl,
+                  decoration: const InputDecoration(labelText: 'Amount (LE)', border: OutlineInputBorder()),
+                  keyboardType: TextInputType.number),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 value: costType,
@@ -172,7 +218,11 @@ class OperationalCostsScreen extends ConsumerWidget {
               const SizedBox(height: 12),
               InkWell(
                 onTap: () async {
-                  final picked = await showDatePicker(context: ctx, initialDate: billingDate, firstDate: DateTime(2024), lastDate: DateTime(2030));
+                  final picked = await showDatePicker(
+                      context: ctx,
+                      initialDate: billingDate,
+                      firstDate: DateTime(2024),
+                      lastDate: DateTime(2030));
                   if (picked != null) setDialogState(() => billingDate = picked);
                 },
                 child: InputDecorator(

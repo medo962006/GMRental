@@ -254,48 +254,44 @@ class DashboardScreen extends ConsumerWidget {
         children: cards.map((c) => _buildStatCard(context, c, 200)).toList(),
       );
     } else {
-      return Column(
-        children: [
-          Row(
-            children: [
-              Expanded(child: _buildStatCard(context, cards[0], null)),
-              const SizedBox(width: 8),
-              Expanded(child: _buildStatCard(context, cards[1], null)),
-              const SizedBox(width: 8),
-              Expanded(child: _buildStatCard(context, cards[2], null)),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(child: _buildStatCard(context, cards[3], null)),
-              const SizedBox(width: 8),
-              Expanded(child: _buildStatCard(context, cards[4], null)),
-              const SizedBox(width: 8),
-              Expanded(child: _buildStatCard(context, cards[5], null)),
-            ],
-          ),
-          const SizedBox(height: 8),
-          _buildStatCard(context, cards[6], null),
-          const SizedBox(height: 8),
-          _buildStatCard(context, cards[7], null),
-          const SizedBox(height: 8),
-          _buildStatCard(context, cards[8], null),
-          const SizedBox(height: 8),
-          _buildStatCard(context, cards[9], null),
-          const SizedBox(height: 8),
-          _buildStatCard(context, cards[10], null),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(child: _buildStatCard(context, cards[11], null)),
-              const SizedBox(width: 8),
-              Expanded(child: _buildStatCard(context, cards[12], null)),
-            ],
-          ),
-        ],
+      // Mobile: horizontal scrollable chips — no overflow
+      return SizedBox(
+        height: 80,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          itemCount: cards.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 8),
+          itemBuilder: (_, i) => _buildStatChip(context, cards[i]),
+        ),
       );
     }
+  }
+
+  /// Compact chip for mobile dashboard.
+  Widget _buildStatChip(BuildContext context, _StatCardData data) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: data.color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: data.color.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(data.icon, size: 18, color: data.color),
+            const SizedBox(width: 6),
+            Text(data.value,
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: data.color)),
+          ]),
+          const SizedBox(height: 2),
+          Text(data.label, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+        ],
+      ),
+    );
   }
 
   Widget _buildStatCard(
