@@ -40,12 +40,10 @@ class _FloatingNavMenuState extends State<FloatingNavMenu>
     'Op. Costs', 'WhatsApp', 'Ta2meen', 'Alerts',
   ];
 
-  // Number of visible items in the arc
   static const int _itemCount = 8;
   static const double _radius = 110.0;
   static const double _itemSize = 48.0;
   static const double _fabSize = 56.0;
-  static const EdgeInsets _margin = EdgeInsets.only(right: 16, bottom: 16);
 
   @override
   void initState() {
@@ -75,8 +73,9 @@ class _FloatingNavMenuState extends State<FloatingNavMenu>
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
-    final fabRight = _margin.right + _fabSize / 2;
-    final fabBottom = _margin.bottom + _fabSize / 2;
+    // Center of screen
+    final centerX = screenSize.width / 2;
+    final centerY = screenSize.height / 2;
 
     return SizedBox.expand(
       child: Stack(
@@ -95,16 +94,10 @@ class _FloatingNavMenuState extends State<FloatingNavMenu>
               ),
             ),
 
-          // Menu items in a radial arc
+          // Menu items in a radial arc (full circle spread)
           ...List.generate(_itemCount, (i) {
-            // Calculate position in a 160-degree arc (from -170 to -10 degrees)
-            // This spreads items from bottom-left to top-left of the FAB
-            final startAngle = -170.0 * math.pi / 180; // start from lower-left
-            final endAngle = -10.0 * math.pi / 180;   // end at upper-left
-            final angle = startAngle + (endAngle - startAngle) * (i / (_itemCount - 1));
-
-            final centerX = screenSize.width - fabRight;
-            final centerY = screenSize.height - fabBottom;
+            // Spread items in a full circle starting from top
+            final angle = (2 * math.pi / _itemCount) * i - math.pi / 2;
 
             return AnimatedBuilder(
               animation: _anim,
@@ -128,10 +121,10 @@ class _FloatingNavMenuState extends State<FloatingNavMenu>
             );
           }),
 
-          // Main FAB
+          // Main FAB — centered
           Positioned(
-            right: _margin.right,
-            bottom: _margin.bottom,
+            left: centerX - _fabSize / 2,
+            top: centerY - _fabSize / 2,
             child: GestureDetector(
               onTap: _toggle,
               child: Container(
