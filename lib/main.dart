@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config/app_config.dart';
+import 'config/app_theme.dart';
 import 'widgets/responsive_shell.dart';
 import 'services/notification_service.dart';
 
@@ -14,7 +15,6 @@ void main() async {
     anonKey: AppConfig.supabaseAnonKey,
   );
 
-  // Initialize local notifications
   await NotificationService.instance.initialize();
 
   runApp(
@@ -35,7 +35,6 @@ class _HostelManagerAppState extends ConsumerState<HostelManagerApp> {
   @override
   void initState() {
     super.initState();
-    // Run notification checks on startup
     WidgetsBinding.instance.addPostFrameCallback((_) {
       NotificationService.instance.runAllChecks();
     });
@@ -46,17 +45,7 @@ class _HostelManagerAppState extends ConsumerState<HostelManagerApp> {
     return MaterialApp(
       title: 'Hostel Manager',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorSchemeSeed: Colors.indigo,
-        useMaterial3: true,
-        brightness: Brightness.light,
-      ),
-      darkTheme: ThemeData(
-        colorSchemeSeed: Colors.indigo,
-        useMaterial3: true,
-        brightness: Brightness.dark,
-      ),
-      themeMode: ThemeMode.system,
+      theme: AppTheme.light,
       home: const ResponsiveShell(),
     );
   }

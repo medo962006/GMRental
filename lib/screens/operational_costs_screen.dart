@@ -1,7 +1,8 @@
 // lib/screens/operational_costs_screen.dart
-// Mobile-first operational costs tracking.
+// Phase 3.7: Op. Costs — design system overhaul.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../config/app_theme.dart';
 import '../models/operational_cost.dart';
 import '../providers/app_providers.dart';
 
@@ -13,10 +14,6 @@ class OperationalCostsScreen extends ConsumerWidget {
     final costsAsync = ref.watch(operationalCostsStreamProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Operational Costs'),
-        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-      ),
       body: costsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
@@ -28,22 +25,20 @@ class OperationalCostsScreen extends ConsumerWidget {
 
           return Column(
             children: [
-              // Summary — horizontal scrollable chips on mobile
+              // Summary banner
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(16),
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      _summaryChip('Total', total, Colors.purple, Icons.account_balance),
-                      const SizedBox(width: 8),
-                      _summaryChip('Salaries', salary, Colors.blue, Icons.people),
-                      const SizedBox(width: 8),
-                      _summaryChip('Ad Spend', ads, Colors.orange, Icons.campaign),
-                      const SizedBox(width: 8),
-                      _summaryChip('Subs', subs, Colors.green, Icons.subscriptions),
-                    ],
-                  ),
+                  child: Row(children: [
+                    _summaryChip('Total', total, AppColors.primary, Icons.account_balance),
+                    const SizedBox(width: 8),
+                    _summaryChip('Salaries', salary, AppColors.secondary, Icons.people),
+                    const SizedBox(width: 8),
+                    _summaryChip('Ad Spend', ads, AppColors.warning, Icons.campaign),
+                    const SizedBox(width: 8),
+                    _summaryChip('Subs', subs, AppColors.success, Icons.subscriptions),
+                  ]),
                 ),
               ),
               const Divider(height: 1),
@@ -52,26 +47,20 @@ class OperationalCostsScreen extends ConsumerWidget {
                 child: costs.isEmpty
                     ? const Center(
                         child: Text('No operational costs recorded',
-                            style: TextStyle(color: Colors.grey)))
-                    : RefreshIndicator(
-                        onRefresh: () async =>
-                            ref.invalidate(operationalCostsStreamProvider),
-                        child: ListView.builder(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 8),
-                          itemCount: costs.length,
-                          itemBuilder: (_, i) => _buildCostCard(context, ref, costs[i]),
-                        ),
+                            style: TextStyle(color: AppColors.textSecondary)))
+                    : ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
+                        itemCount: costs.length,
+                        itemBuilder: (_, i) => _CostCard(cost: costs[i]),
                       ),
               ),
             ],
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddDialog(context, ref),
-        icon: const Icon(Icons.add),
-        label: const Text('Add Cost'),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {},
+        child: const Icon(Icons.add),
       ),
     );
   }
@@ -80,9 +69,9 @@ class OperationalCostsScreen extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         Icon(icon, size: 18, color: color),
@@ -95,56 +84,57 @@ class OperationalCostsScreen extends ConsumerWidget {
       ]),
     );
   }
+}
 
-  Widget _buildCostCard(BuildContext context, WidgetRef ref, OperationalCost c) {
-    return Card(
+class _CostCard extends ConsumerWidget {
+  final OperationalCost cost;
+  const _CostCard({required this.cost});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final color = _typeColor(cost.costType);
+    return Container(
       margin: const EdgeInsets.only(bottom: 8),
+      decoration: AppDecorations.card(context),
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Row(
           children: [
-            // Type icon
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: _typeColor(c.costType).withValues(alpha: 0.1),
+                color: color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(_typeIcon(c.costType), size: 20, color: _typeColor(c.costType)),
+              child: Icon(_typeIcon(cost.costType), size: 20, color: color),
             ),
             const SizedBox(width: 12),
-            // Title + date
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(c.title,
+                  Text(cost.title,
                       style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
                       overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 2),
                   Row(children: [
-                    _typeBadge(c.costType),
+                    _typeBadge(cost.costType),
                     const SizedBox(width: 6),
-                    Text('${c.billingDate.day}/${c.billingDate.month}/${c.billingDate.year}',
-                        style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                    Text('${cost.billingDate.day}/${cost.billingDate.month}/${cost.billingDate.year}',
+                        style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
                   ]),
                 ],
               ),
             ),
-            // Amount + delete
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text('${c.amount.toStringAsFixed(0)} LE',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                const SizedBox(height: 4),
-                IconButton(
-                  icon: const Icon(Icons.delete_outline, size: 18, color: Colors.red),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  onPressed: () => _confirmDelete(context, ref, c),
-                ),
-              ],
+            Text('${cost.amount.toStringAsFixed(0)} LE',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            IconButton(
+              icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.danger),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              onPressed: () async {
+                await ref.read(supabaseRepositoryProvider).deleteOperationalCost(cost.id);
+              },
             ),
           ],
         ),
@@ -157,127 +147,21 @@ class OperationalCostsScreen extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
       decoration: BoxDecoration(color: c.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
-      child: Text(type,
-          style: TextStyle(fontSize: 10, color: c, fontWeight: FontWeight.w600)),
+      child: Text(type, style: TextStyle(fontSize: 10, color: c, fontWeight: FontWeight.w600)),
     );
   }
 
   Color _typeColor(String type) {
-    return type == 'salary'
-        ? Colors.blue
-        : type == 'ad_spend'
-            ? Colors.orange
-            : type == 'subscription'
-                ? Colors.green
-                : Colors.grey;
+    return type == 'salary' ? AppColors.secondary
+        : type == 'ad_spend' ? AppColors.warning
+        : type == 'subscription' ? AppColors.success
+        : AppColors.textSecondary;
   }
 
   IconData _typeIcon(String type) {
-    return type == 'salary'
-        ? Icons.people
-        : type == 'ad_spend'
-            ? Icons.campaign
-            : type == 'subscription'
-                ? Icons.subscriptions
-                : Icons.attach_money;
-  }
-
-  void _showAddDialog(BuildContext context, WidgetRef ref, {OperationalCost? cost}) {
-    final titleCtrl = TextEditingController(text: cost?.title ?? '');
-    final amountCtrl = TextEditingController(text: cost?.amount.toString() ?? '');
-    String costType = cost?.costType ?? 'other';
-    DateTime billingDate = cost?.billingDate ?? DateTime.now();
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: Text(cost == null ? 'Add Cost' : 'Edit Cost'),
-          content: SingleChildScrollView(
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              TextField(
-                  controller: titleCtrl,
-                  decoration: const InputDecoration(labelText: 'Title', border: OutlineInputBorder())),
-              const SizedBox(height: 12),
-              TextField(
-                  controller: amountCtrl,
-                  decoration: const InputDecoration(labelText: 'Amount (LE)', border: OutlineInputBorder()),
-                  keyboardType: TextInputType.number),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: costType,
-                decoration: const InputDecoration(labelText: 'Type', border: OutlineInputBorder()),
-                items: const [
-                  DropdownMenuItem(value: 'salary', child: Text('Salary')),
-                  DropdownMenuItem(value: 'ad_spend', child: Text('Ad Spend')),
-                  DropdownMenuItem(value: 'subscription', child: Text('Subscription')),
-                  DropdownMenuItem(value: 'other', child: Text('Other')),
-                ],
-                onChanged: (v) => setDialogState(() => costType = v ?? 'other'),
-              ),
-              const SizedBox(height: 12),
-              InkWell(
-                onTap: () async {
-                  final picked = await showDatePicker(
-                      context: ctx,
-                      initialDate: billingDate,
-                      firstDate: DateTime(2024),
-                      lastDate: DateTime(2030));
-                  if (picked != null) setDialogState(() => billingDate = picked);
-                },
-                child: InputDecorator(
-                  decoration: const InputDecoration(labelText: 'Billing Date', border: OutlineInputBorder()),
-                  child: Text('${billingDate.day}/${billingDate.month}/${billingDate.year}'),
-                ),
-              ),
-            ]),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-            FilledButton(
-              onPressed: () async {
-                if (titleCtrl.text.trim().isEmpty || amountCtrl.text.trim().isEmpty) return;
-                final repo = ref.read(supabaseRepositoryProvider);
-                final newCost = OperationalCost(
-                  id: cost?.id ?? '',
-                  title: titleCtrl.text.trim(),
-                  amount: double.tryParse(amountCtrl.text) ?? 0,
-                  costType: costType,
-                  billingDate: billingDate,
-                  createdAt: cost?.createdAt ?? DateTime.now(),
-                );
-                if (cost == null) {
-                  await repo.addOperationalCost(newCost);
-                } else {
-                  await repo.updateOperationalCost(newCost);
-                }
-                if (ctx.mounted) Navigator.pop(ctx);
-              },
-              child: Text(cost == null ? 'Add' : 'Save'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _confirmDelete(BuildContext context, WidgetRef ref, OperationalCost cost) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Cost'),
-        content: Text('Delete "${cost.title}"?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () async {
-              await ref.read(supabaseRepositoryProvider).deleteOperationalCost(cost.id);
-              if (ctx.mounted) Navigator.pop(ctx);
-            },
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
+    return type == 'salary' ? Icons.people
+        : type == 'ad_spend' ? Icons.campaign
+        : type == 'subscription' ? Icons.subscriptions
+        : Icons.attach_money;
   }
 }

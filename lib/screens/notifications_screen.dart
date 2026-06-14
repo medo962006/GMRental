@@ -1,14 +1,13 @@
 // lib/screens/notifications_screen.dart
-// Phase 3.7: Admin Notification Panel — mobile-first.
+// Phase 3.7: Notification Center — design system overhaul.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../config/app_theme.dart';
 import '../models/admin_notification.dart';
 import '../providers/app_providers.dart';
 
 class NotificationsScreen extends ConsumerWidget {
   const NotificationsScreen({super.key});
-
-  // Current admin ID — in production this would come from auth
   static const _currentAdminId = 'emad';
 
   @override
@@ -16,17 +15,6 @@ class NotificationsScreen extends ConsumerWidget {
     final notificationsAsync = ref.watch(adminNotificationsStreamProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Notifications'),
-        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.done_all),
-            tooltip: 'Mark all read',
-            onPressed: () => _markAllRead(ref),
-          ),
-        ],
-      ),
       body: notificationsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
@@ -36,138 +24,149 @@ class NotificationsScreen extends ConsumerWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.notifications_off, size: 48, color: Colors.grey),
+                  Icon(Icons.notifications_off, size: 48, color: AppColors.textSecondary),
                   SizedBox(height: 12),
                   Text('No notifications',
-                      style: TextStyle(color: Colors.grey)),
+                      style: TextStyle(color: AppColors.textSecondary)),
                 ],
               ),
             );
           }
 
-          // Group by category
-          final rentDue =
-              notifications.where((n) => n.isRentDue).toList();
-          final insurance =
-              notifications.where((n) => n.isInsuranceAlert).toList();
-          final tasks =
-              notifications.where((n) => n.isTaskPending).toList();
-
-          return ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            children: [
-              if (rentDue.isNotEmpty) ...[
-                _sectionHeader('Rent Due', Colors.orange, Icons.payments),
-                ...rentDue.map((n) => _buildNotificationCard(context, ref, n)),
-              ],
-              if (insurance.isNotEmpty) ...[
-                _sectionHeader('Insurance', Colors.purple, Icons.shield),
-                ...insurance.map((n) => _buildNotificationCard(context, ref, n)),
-              ],
-              if (tasks.isNotEmpty) ...[
-                _sectionHeader('Tasks', Colors.blue, Icons.checklist),
-                ...tasks.map((n) => _buildNotificationCard(context, ref, n)),
-              ],
-            ],
+          return ListView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+            itemCount: notifications.length,
+            itemBuilder: (_, i) =>
+                _NotificationCard(notification: notifications[i]),
           );
         },
       ),
     );
   }
+}
 
-  Widget _sectionHeader(String title, Color color, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 12, 4, 4),
-      child: Row(children: [
-        Icon(icon, size: 16, color: color),
-        const SizedBox(width: 6),
-        Text(title,
-            style: TextStyle(
-                fontSize: 13, fontWeight: FontWeight.bold, color: color)),
-      ]),
-    );
-  }
+class _NotificationCard extends ConsumerWidget {
+  final AdminNotification notification;
+  const _NotificationCard({required this.notification});
 
-  Widget _buildNotificationCard(
-      BuildContext context, WidgetRef ref, AdminNotification n) {
-    final isRead = n.isReadBy(_currentAdminId);
-    final color = n.isRentDue
-        ? Colors.orange
-        : n.isInsuranceAlert
-            ? Colors.purple
-            : Colors.blue;
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isRead = notification.isReadBy(NotificationsScreen._currentAdminId);
+    final color = notification.isRentDue
+        ? AppColors.warning
+        : notification.isInsuranceAlert
+            ? AppColors.accent
+            : AppColors.infoText;
+    final icon = notification.isRentDue
+        ? Icons.payments
+        : notification.isInsuranceAlert
+            ? Icons.shield
+            : Icons.checklist;
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 6),
-      elevation: isRead ? 0.5 : 2,
-      color: isRead ? Colors.grey.shade50 : null,
-      child: InkWell(
-        onTap: () {
-          if (!isRead) {
-            ref
-                .read(supabaseRepositoryProvider)
-                .markNotificationRead(n.id, _currentAdminId);
-          }
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Unread indicator
-              Container(
-                width: 8,
-                height: 8,
-                margin: const EdgeInsets.only(top: 6),
-                decoration: BoxDecoration(
-                  color: isRead ? Colors.transparent : color,
-                  shape: BoxShape.circle,
-                ),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+            color: isRead ? AppColors.borderMuted : color.withValues(alpha: 0.3),
+            width: isRead ? 1 : 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.shadowColor,
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Accent strip
+            Container(
+              width: 4,
+              decoration: BoxDecoration(
+                color: isRead ? Colors.transparent : color,
+                borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(16), bottomLeft: Radius.circular(16)),
               ),
-              const SizedBox(width: 10),
-              // Content
-              Expanded(
+            ),
+            // Avatar circle
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, size: 20, color: color),
+              ),
+            ),
+            // Content
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(n.title,
+                    Text(notification.title,
                         style: TextStyle(
                           fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
                           fontSize: 14,
-                          color: isRead ? Colors.grey.shade600 : null,
+                          color: isRead ? AppColors.textSecondary : AppColors.neutralDark,
                         )),
                     const SizedBox(height: 4),
-                    Text(n.body,
+                    Text(notification.body,
                         style: TextStyle(
                           fontSize: 12,
-                          color: isRead ? Colors.grey.shade500 : Colors.grey.shade700,
+                          color: isRead ? AppColors.textSecondary : AppColors.neutralDark,
                         )),
                     const SizedBox(height: 4),
-                    Text(_timeAgo(n.createdAt),
+                    Text(_timeAgo(notification.createdAt),
                         style: TextStyle(
-                            fontSize: 10, color: Colors.grey.shade400)),
+                            fontSize: 10, color: AppColors.textSecondary)),
                   ],
                 ),
               ),
-              // Delete button
-              IconButton(
-                icon: const Icon(Icons.close, size: 16, color: Colors.grey),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                onPressed: () => ref
-                    .read(supabaseRepositoryProvider)
-                    .deleteNotification(n.id),
+            ),
+            // Actions
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (!isRead)
+                    GestureDetector(
+                      onTap: () => ref
+                          .read(supabaseRepositoryProvider)
+                          .markNotificationRead(
+                              notification.id, NotificationsScreen._currentAdminId),
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: AppColors.successBg,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.done, size: 14, color: AppColors.success),
+                      ),
+                    ),
+                  const SizedBox(height: 4),
+                  GestureDetector(
+                    onTap: () => ref
+                        .read(supabaseRepositoryProvider)
+                        .deleteNotification(notification.id),
+                    child: const Icon(Icons.close, size: 14, color: AppColors.textSecondary),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
-  }
-
-  void _markAllRead(WidgetRef ref) {
-    // This would need the full list — for now, handled per-card
   }
 
   String _timeAgo(DateTime dt) {
