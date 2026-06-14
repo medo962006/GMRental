@@ -234,21 +234,70 @@ class ResponsiveShell extends ConsumerWidget {
               padding: const EdgeInsets.all(20),
               child: Row(children: [
                 Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                      color: AppColors.primary, borderRadius: BorderRadius.circular(14)),
+                  width: 44, height: 44,
+                  decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(14)),
                   child: const Icon(Icons.apartment, color: Colors.white, size: 24),
                 ),
                 const SizedBox(width: 12),
-                const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Hostel Manager',
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Text('Hostel Manager',
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primary)),
-                  Text('Property Management',
-                      style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                  Consumer(builder: (context, ref, _) {
+                    final bId = ref.watch(currentBuildingIdProvider);
+                    return Text(bId == 1 ? 'Main Building' : 'المبنى الثاني',
+                        style: const TextStyle(fontSize: 11, color: AppColors.textSecondary));
+                  }),
                 ]),
               ]),
             ),
+            const Divider(height: 1),
+
+            // ── Building Switcher ──
+            Consumer(builder: (context, ref, _) {
+              final bId = ref.watch(currentBuildingIdProvider);
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.canvas,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.borderMuted),
+                  ),
+                  child: Row(children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => ref.read(currentBuildingIdProvider.notifier).state = 1,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          decoration: BoxDecoration(
+                            color: bId == 1 ? AppColors.primary : Colors.transparent,
+                            borderRadius: BorderRadius.circular(11),
+                          ),
+                          child: Text('Main Building',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: bId == 1 ? Colors.white : AppColors.textSecondary)),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => ref.read(currentBuildingIdProvider.notifier).state = 2,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          decoration: BoxDecoration(
+                            color: bId == 2 ? AppColors.primary : Colors.transparent,
+                            borderRadius: BorderRadius.circular(11),
+                          ),
+                          child: Text('المبنى الثاني',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: bId == 2 ? Colors.white : AppColors.textSecondary)),
+                        ),
+                      ),
+                    ),
+                  ]),
+                ),
+              );
+            }),
             const Divider(height: 1),
             // Nav items
             Expanded(

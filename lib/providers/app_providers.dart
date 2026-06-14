@@ -20,6 +20,10 @@ final supabaseRepositoryProvider = Provider<SupabaseRepository>((ref) {
 
 final selectedIndexProvider = StateProvider<int>((ref) => 0);
 
+// ── Building Selection ──────────────────────────────
+// Building 1 = Main (Supabase), Building 2 = Second (local data)
+final currentBuildingIdProvider = StateProvider<int>((ref) => 1);
+
 // ── Rooms ───────────────────────────────────────────
 
 final roomsStreamProvider = StreamProvider<List<Room>>((ref) {
