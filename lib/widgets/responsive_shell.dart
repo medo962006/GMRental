@@ -8,7 +8,9 @@ import '../screens/masareef_screen.dart';
 import '../screens/tasks_screen.dart';
 import '../screens/operational_costs_screen.dart';
 import '../screens/whatsapp_screen.dart';
-import '../screens/settings_screen.dart';
+import '../screens/insurance_screen.dart';
+import '../screens/notifications_screen.dart';
+import '../models/admin_notification.dart';
 
 class ResponsiveShell extends ConsumerWidget {
   const ResponsiveShell({super.key});
@@ -26,7 +28,8 @@ class ResponsiveShell extends ConsumerWidget {
       TasksScreen(),            // 3
       OperationalCostsScreen(), // 4
       WhatsAppScreen(),         // 5
-      SettingsScreen(),         // 6  ← NEW
+      InsuranceScreen(),        // 6
+      NotificationsScreen(),    // 7
     ];
 
     final navItems = const <String>[
@@ -36,8 +39,18 @@ class ResponsiveShell extends ConsumerWidget {
       'Tasks',
       'Op. Costs',
       'WhatsApp',
-      'Settings',
+      'Ta2meen',
+      'Alerts',
     ];
+
+    // Unread notification count for badge
+    final notificationsAsync = ref.watch(adminNotificationsStreamProvider);
+    final unreadCount = notificationsAsync.when(
+      data: (List<AdminNotification> list) =>
+          list.where((n) => !n.isReadBy('emad')).length,
+      loading: () => 0,
+      error: (_, __) => 0,
+    );
 
     if (isDesktop) {
       return Scaffold(
@@ -81,9 +94,14 @@ class ResponsiveShell extends ConsumerWidget {
                   label: Text('WhatsApp'),
                 ),
                 NavigationRailDestination(
-                  icon: Icon(Icons.settings_outlined),
-                  selectedIcon: Icon(Icons.settings),
-                  label: Text('Settings'),
+                  icon: Icon(Icons.shield_outlined),
+                  selectedIcon: Icon(Icons.shield),
+                  label: Text('Ta2meen'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.notifications_outlined),
+                  selectedIcon: Icon(Icons.notifications),
+                  label: Text('Alerts'),
                 ),
               ],
             ),
@@ -98,6 +116,39 @@ class ResponsiveShell extends ConsumerWidget {
       appBar: AppBar(
         title: Text(navItems[selectedIndex]),
         centerTitle: false,
+        actions: [
+          // Bell icon with unread badge
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications_outlined),
+                onPressed: () {
+                  ref.read(selectedIndexProvider.notifier).state = 7;
+                },
+              ),
+              if (unreadCount > 0)
+                Positioned(
+                  right: 6,
+                  top: 6,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    constraints: const BoxConstraints(
+                        minWidth: 16, minHeight: 16),
+                    child: Text(
+                      '$unreadCount',
+                      style: const TextStyle(
+                          color: Colors.white, fontSize: 10),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
       ),
       body: screens[selectedIndex],
       bottomNavigationBar: NavigationBar(
@@ -137,9 +188,14 @@ class ResponsiveShell extends ConsumerWidget {
             label: 'WhatsApp',
           ),
           NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            selectedIcon: Icon(Icons.settings),
-            label: 'Settings',
+            icon: Icon(Icons.shield_outlined),
+            selectedIcon: Icon(Icons.shield),
+            label: 'Ta2meen',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.notifications_outlined),
+            selectedIcon: Icon(Icons.notifications),
+            label: 'Alerts',
           ),
         ],
       ),

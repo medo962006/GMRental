@@ -7,6 +7,8 @@ import '../models/masareef.dart';
 import '../models/task_routine.dart';
 import '../models/operational_cost.dart';
 import '../models/whatsapp_log.dart';
+import '../models/insurance_ledger.dart';
+import '../models/admin_notification.dart';
 
 // ── Repository ──────────────────────────────────────
 
@@ -90,4 +92,28 @@ final whatsAppLogsFutureProvider = FutureProvider<List<WhatsAppLog>>((ref) {
 
 final dashboardStatsProvider = FutureProvider<Map<String, dynamic>>((ref) {
   return ref.watch(supabaseRepositoryProvider).getDashboardStats();
+});
+
+// ── Phase 3.7: Insurance Ledger ─────────────────────
+
+final insuranceLedgersStreamProvider =
+    StreamProvider<List<InsuranceLedger>>((ref) {
+  return ref.watch(supabaseRepositoryProvider).watchInsuranceLedgers();
+});
+
+final insuranceLedgersFutureProvider =
+    FutureProvider<List<InsuranceLedger>>((ref) {
+  return ref.watch(supabaseRepositoryProvider).getInsuranceLedgers();
+});
+
+// ── Phase 3.7: Admin Notifications ──────────────────
+
+final adminNotificationsStreamProvider =
+    StreamProvider<List<AdminNotification>>((ref) {
+  return ref.watch(supabaseRepositoryProvider).watchAdminNotifications();
+});
+
+final adminNotificationsFutureProvider =
+    FutureProvider<List<AdminNotification>>((ref) {
+  return ref.watch(supabaseRepositoryProvider).getAdminNotifications();
 });
