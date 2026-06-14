@@ -1,5 +1,5 @@
 // lib/screens/insurance_screen.dart
-// Phase 3.7: Ta2meen Hub — design system overhaul with progress indicators.
+// Insurance Hub — financial overview + progress indicators.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/app_theme.dart';
@@ -22,12 +22,10 @@ class InsuranceScreen extends ConsumerWidget {
         data: (ledgers) {
           return tenantsAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (_, __) => _buildList(context, ref, ledgers, {}),
+            error: (_, __) => _buildContent(context, ref, ledgers, {}),
             data: (tenants) {
-              final tenantMap = <String, Tenant>{
-                for (final t in tenants) t.id: t
-              };
-              return _buildList(context, ref, ledgers, tenantMap);
+              final tenantMap = <String, Tenant>{for (final t in tenants) t.id: t};
+              return _buildContent(context, ref, ledgers, tenantMap);
             },
           );
         },
@@ -35,32 +33,88 @@ class InsuranceScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildList(BuildContext context, WidgetRef ref,
+  Widget _buildContent(BuildContext context, WidgetRef ref,
       List<InsuranceLedger> ledgers, Map<String, Tenant> tenantMap) {
+    final totalAgreed = ledgers.fold(0.0, (s, l) => s + l.totalAgreedAmount);
+    final totalPaid = ledgers.fold(0.0, (s, l) => s + l.amountPaidSoFar);
+    final totalOwed = ledgers.fold(0.0, (s, l) => s + l.remainingBalance);
     final withRemaining = ledgers.where((l) => l.hasRemaining).toList();
+    final overdueCount = withRemaining.where((l) => l.isOverdue).length;
 
-    if (withRemaining.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.check_circle, size: 48, color: AppColors.success),
-            SizedBox(height: 12),
-            Text('All insurance settled',
-                style: TextStyle(color: AppColors.textSecondary)),
-          ],
-        ),
-      );
-    }
-
-    return ListView.builder(
+    return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
-      itemCount: withRemaining.length,
-      itemBuilder: (_, i) {
-        final ledger = withRemaining[i];
-        final tenant = tenantMap[ledger.tenantId];
-        return _InsuranceCard(ledger: ledger, tenant: tenant, ref: ref);
-      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Financial Overview Banner ──
+          Container(
+            decoration: AppDecorations.card(context),
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Insurance Overview',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                const SizedBox(height: 16),
+                Row(children: [
+                  _finCol('Total Agreed', totalAgreed, AppColors.primary),
+                  const SizedBox(width: 16),
+                  _finCol('Collected', totalPaid, AppColors.success),
+                ]),
+                const SizedBox(height: 12),
+                Row(children: [
+                  _finCol('Outstanding', totalOwed, AppColors.danger),
+                  const SizedBox(width: 16),
+                  _finCol('Overdue', overdueCount.toDouble(), AppColors.warning, isCount: true),
+                ]),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // ── Section Header ──
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Active Balances',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.neutralDark)),
+              if (overdueCount > 0)
+                AppBadge.unpaid(label: '$overdueCount overdue'),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // ── Ledger Cards ──
+          if (withRemaining.isEmpty)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(32),
+                child: Column(children: [
+                  Icon(Icons.check_circle, size: 48, color: AppColors.success),
+                  SizedBox(height: 8),
+                  Text('All insurance settled', style: TextStyle(color: AppColors.textSecondary)),
+                ]),
+              ),
+            )
+          else
+            ...withRemaining.map((l) {
+              final tenant = tenantMap[l.tenantId];
+              return _InsuranceCard(ledger: l, tenant: tenant);
+            }),
+        ],
+      ),
+    );
+  }
+
+  Widget _finCol(String label, double value, Color color, {bool isCount = false}) {
+    return Expanded(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+        const SizedBox(height: 4),
+        Text(isCount ? '${value.toInt()}' : '${value.toStringAsFixed(0)} LE',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
+      ]),
     );
   }
 }
@@ -68,162 +122,70 @@ class InsuranceScreen extends ConsumerWidget {
 class _InsuranceCard extends StatelessWidget {
   final InsuranceLedger ledger;
   final Tenant? tenant;
-  final WidgetRef ref;
-
-  const _InsuranceCard({required this.ledger, this.tenant, required this.ref});
+  const _InsuranceCard({required this.ledger, this.tenant});
 
   @override
   Widget build(BuildContext context) {
     final isOverdue = ledger.isOverdue;
     final progress = ledger.totalAgreedAmount > 0
-        ? ledger.amountPaidSoFar / ledger.totalAgreedAmount
+        ? (ledger.amountPaidSoFar / ledger.totalAgreedAmount).clamp(0.0, 1.0)
         : 0.0;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 10),
       decoration: AppDecorations.card(context),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header: name + overdue badge
-            Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: AppColors.infoBg,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.shield, color: AppColors.accent, size: 20),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(tenant?.name ?? 'Unknown',
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 15,
-                              color: AppColors.neutralDark)),
-                      if (tenant != null)
-                        Text('Room ${tenant!.roomId ?? '—'}',
-                            style: const TextStyle(
-                                fontSize: 12, color: AppColors.textSecondary)),
-                    ],
-                  ),
-                ),
-                if (isOverdue)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: AppColors.dangerBg,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text('OVERDUE',
-                        style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.dangerText)),
-                  ),
-              ],
-            ),
+            // Header
+            Row(children: [
+              Container(
+                width: 36, height: 36,
+                decoration: BoxDecoration(color: AppColors.infoBg, borderRadius: BorderRadius.circular(10)),
+                child: const Icon(Icons.shield, size: 18, color: AppColors.accent),
+              ),
+              const SizedBox(width: 10),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(tenant?.name ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                if (tenant != null) Text('Room ${tenant!.roomId ?? '—'}', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+              ])),
+              if (isOverdue) AppBadge.unpaid(label: 'OVERDUE'),
+            ]),
 
             const SizedBox(height: 12),
 
-            // Progress bar
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('${ledger.amountPaidSoFar.toStringAsFixed(0)} LE paid',
-                        style: const TextStyle(
-                            fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.successText)),
-                    Text('${ledger.remainingBalance.toStringAsFixed(0)} LE owed',
-                        style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: isOverdue ? AppColors.dangerText : AppColors.textSecondary)),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: progress.clamp(0.0, 1.0),
-                    minHeight: 8,
-                    backgroundColor: AppColors.mutedPastel.withValues(alpha: 0.3),
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                        isOverdue ? AppColors.danger : AppColors.secondary),
-                  ),
-                ),
-              ],
+            // Progress
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              Text('${ledger.amountPaidSoFar.toStringAsFixed(0)} paid', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.successText)),
+              Text('${ledger.remainingBalance.toStringAsFixed(0)} owed', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: isOverdue ? AppColors.dangerText : AppColors.textSecondary)),
+            ]),
+            const SizedBox(height: 6),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 6,
+                backgroundColor: AppColors.mutedPastel.withValues(alpha: 0.3),
+                valueColor: AlwaysStoppedAnimation(isOverdue ? AppColors.danger : AppColors.secondary),
+              ),
             ),
 
             if (ledger.dueDateForRemaining != null) ...[
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Icon(Icons.event, size: 14,
-                      color: isOverdue ? AppColors.danger : AppColors.textSecondary),
-                  const SizedBox(width: 4),
-                  Text('Due: ${_fmtDate(ledger.dueDateForRemaining)}',
-                      style: TextStyle(
-                          fontSize: 12,
-                          color: isOverdue ? AppColors.danger : AppColors.textSecondary,
-                          fontWeight: isOverdue ? FontWeight.bold : FontWeight.normal)),
-                ],
-              ),
+              const SizedBox(height: 6),
+              Row(children: [
+                Icon(Icons.event, size: 12, color: isOverdue ? AppColors.danger : AppColors.textSecondary),
+                const SizedBox(width: 4),
+                Text('Due: ${_fmt(ledger.dueDateForRemaining)}',
+                    style: TextStyle(fontSize: 11, color: isOverdue ? AppColors.danger : AppColors.textSecondary, fontWeight: isOverdue ? FontWeight.bold : FontWeight.normal)),
+              ]),
             ],
-
-            const SizedBox(height: 12),
-            const Divider(height: 1),
-            const SizedBox(height: 12),
-
-            // Action buttons
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _showCollectDialog(ref, ledger),
-                    icon: const Icon(Icons.payments, size: 16),
-                    label: const Text('Collect', style: TextStyle(fontSize: 13)),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: () => _showRefundDialog(ref, ledger, tenant),
-                    icon: const Icon(Icons.replay, size: 16),
-                    label: const Text('Refund', style: TextStyle(fontSize: 13)),
-                  ),
-                ),
-              ],
-            ),
           ],
         ),
       ),
     );
   }
 
-  void _showCollectDialog(WidgetRef ref, InsuranceLedger ledger) {
-    final ctrl = TextEditingController();
-    // Dialog implementation — simplified
-  }
-
-  void _showRefundDialog(WidgetRef ref, InsuranceLedger ledger, Tenant? tenant) {
-    final refundCtrl = TextEditingController(text: ledger.remainingBalance.toStringAsFixed(0));
-    final deductCtrl = TextEditingController();
-    // Dialog implementation — simplified
-  }
-
-  String _fmtDate(DateTime? d) {
-    if (d == null) return '—';
-    return '${d.day}/${d.month}/${d.year}';
-  }
+  String _fmt(DateTime? d) => d == null ? '—' : '${d.day}/${d.month}/${d.year}';
 }
