@@ -6,6 +6,9 @@ import '../models/masareef.dart';
 import '../models/task_routine.dart';
 import '../models/operational_cost.dart';
 import '../models/whatsapp_log.dart';
+import '../models/insurance_ledger.dart';
+import '../models/insurance_transaction.dart';
+import '../models/admin_notification.dart';
 
 class SupabaseRepository {
   final SupabaseClient _client = Supabase.instance.client;
@@ -398,5 +401,186 @@ class SupabaseRepository {
       'netBalance': totalRentCollected - totalExpenses - totalOpCosts,
       'pendingTasks': pendingTasks.length,
     };
+  }
+
+  // ════════════════════════════════════════════════════════
+  // PHASE 3.7: INSURANCE LEDGER
+  // ════════════════════════════════════════════════════════
+
+  Stream<List<InsuranceLedger>> watchInsuranceLedgers() {
+    return _client
+        .from('insurance_ledger')
+        .stream(primaryKey: ['id'])
+        .order('created_at', ascending: false)
+        .map((data) => data.map((e) => InsuranceLedger.fromJson(e)).toList());
+  }
+
+  Future<List<InsuranceLedger>> getInsuranceLedgers() async {
+    final data = await _client.from('insurance_ledger').select().order('created_at', ascending: false);
+    return (data as List).map((e) => InsuranceLedger.fromJson(e)).toList();
+  }
+
+  Future<InsuranceLedger> createInsuranceLedger({
+    required String tenantId,
+    required double totalAgreedAmount,
+    double amountPaidSoFar = 0.0,
+    DateTime? dueDateForRemaining,
+  }) async {
+    final data = await _client.from('insurance_ledger').insert({
+      'tenant_id': tenantId,
+      'total_agreed_amount': totalAgreedAmount,
+      'amount_paid_so_far': amountPaidSoFar,
+      'due_date_for_remaining': dueDateForRemaining?.toIso8601String().split('T').first,
+      'status': amountPaidSoFar >= totalAgreedAmount ? 'fully_paid' : 'partial',
+    }).select().single();
+    return InsuranceLedger.fromJson(data);
+  }
+
+  /// Collect partial insurance payment. Atomically updates the ledger
+  /// and inserts a payment_received transaction.
+  Future<InsuranceLedger> collectInsurancePayment({
+    required String insuranceId,
+    required double amount,
+    String? notes,
+  }) async {
+    // Get current ledger
+    final current = await _client.from('insurance_ledger').select().eq('id', insuranceId).single();
+    final ledger = InsuranceLedger.fromJson(current);
+    final newPaid = ledger.amountPaidSoFar + amount;
+    final newStatus = newPaid >= ledger.totalAgreedAmount ? 'fully_paid' : 'partial';
+
+    // Update ledger
+    final updated = await _client.from('insurance_ledger').update({
+      'amount_paid_so_far': newPaid,
+      'status': newStatus,
+    }).eq('id', insuranceId).select().single();
+
+    // Log transaction
+    await _client.from('insurance_transactions').insert({
+      'insurance_id': insuranceId,
+      'transaction_type': 'payment_received',
+      'amount': amount,
+      'notes': notes ?? 'Insurance payment collected',
+    });
+
+    return InsuranceLedger.fromJson(updated);
+  }
+
+  /// Process refund (full or partial). Logs refund_paid transaction.
+  /// If deductionAmount > 0, also logs a deduction_spend transaction
+  /// and creates a masareef expense for the deducted amount.
+  Future<InsuranceLedger> processInsuranceRefund({
+    required String insuranceId,
+    required double refundAmount,
+    double deductionAmount = 0.0,
+    String? deductionNotes,
+    int? roomId,
+  }) async {
+    final current = await _client.from('insurance_ledger').select().eq('id', insuranceId).single();
+    final ledger = InsuranceLedger.fromJson(current);
+
+    // Log refund transaction
+    await _client.from('insurance_transactions').insert({
+      'insurance_id': insuranceId,
+      'transaction_type': 'refund_paid',
+      'amount': refundAmount,
+      'notes': 'Insurance refund processed',
+    });
+
+    // If there's a deduction, log it and create a masareef expense
+    if (deductionAmount > 0) {
+      await _client.from('insurance_transactions').insert({
+        'insurance_id': insuranceId,
+        'transaction_type': 'deduction_spend',
+        'amount': deductionAmount,
+        'notes': deductionNotes ?? 'Insurance deduction',
+      });
+
+      // Create masareef expense for the deducted amount
+      await _client.from('masareef').insert({
+        'title': 'Insurance Deduction - Room ${roomId ?? 'N/A'}',
+        'amount': deductionAmount,
+        'category': 'general',
+        'date_incurred': DateTime.now().toIso8601String().split('T').first,
+      });
+    }
+
+    // Update ledger status to refunded
+    final updated = await _client.from('insurance_ledger').update({
+      'status': 'refunded',
+    }).eq('id', insuranceId).select().single();
+
+    return InsuranceLedger.fromJson(updated);
+  }
+
+  Future<void> deleteInsuranceLedger(String id) async {
+    await _client.from('insurance_ledger').delete().eq('id', id);
+  }
+
+  // ════════════════════════════════════════════════════════
+  // PHASE 3.7: INSURANCE TRANSACTIONS
+  // ════════════════════════════════════════════════════════
+
+  Future<List<InsuranceTransaction>> getInsuranceTransactions(String insuranceId) async {
+    final data = await _client
+        .from('insurance_transactions')
+        .select()
+        .eq('insurance_id', insuranceId)
+        .order('created_at', ascending: false);
+    return (data as List).map((e) => InsuranceTransaction.fromJson(e)).toList();
+  }
+
+  // ════════════════════════════════════════════════════════
+  // PHASE 3.7: ADMIN NOTIFICATIONS
+  // ════════════════════════════════════════════════════════
+
+  Stream<List<AdminNotification>> watchAdminNotifications() {
+    return _client
+        .from('admin_notifications')
+        .stream(primaryKey: ['id'])
+        .order('created_at', ascending: false)
+        .map((data) => data.map((e) => AdminNotification.fromJson(e)).toList());
+  }
+
+  Future<List<AdminNotification>> getAdminNotifications() async {
+    final data = await _client
+        .from('admin_notifications')
+        .select()
+        .order('created_at', ascending: false);
+    return (data as List).map((e) => AdminNotification.fromJson(e)).toList();
+  }
+
+  Future<AdminNotification> createNotification({
+    required String title,
+    required String body,
+    required String category,
+  }) async {
+    final data = await _client.from('admin_notifications').insert({
+      'title': title,
+      'body': body,
+      'category': category,
+    }).select().single();
+    return AdminNotification.fromJson(data);
+  }
+
+  /// Mark a notification as read by a specific admin.
+  Future<void> markNotificationRead(String notificationId, String adminId) async {
+    final current = await _client
+        .from('admin_notifications')
+        .select('is_read_by_admin')
+        .eq('id', notificationId)
+        .single();
+    final readRaw = current['is_read_by_admin'] as List?;
+    final readList = readRaw?.map((e) => e.toString()).toList() ?? [];
+    if (!readList.contains(adminId)) {
+      readList.add(adminId);
+      await _client.from('admin_notifications').update({
+        'is_read_by_admin': readList,
+      }).eq('id', notificationId);
+    }
+  }
+
+  Future<void> deleteNotification(String id) async {
+    await _client.from('admin_notifications').delete().eq('id', id);
   }
 }
