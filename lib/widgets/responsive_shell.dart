@@ -1,5 +1,5 @@
 // lib/widgets/responsive_shell.dart
-// Desktop: deep blue sidebar. Mobile: floating circular nav menu.
+// Desktop: deep blue sidebar. Mobile: hamburger → drawer with nav items.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/app_theme.dart';
@@ -13,7 +13,6 @@ import '../screens/whatsapp_screen.dart';
 import '../screens/insurance_screen.dart';
 import '../screens/notifications_screen.dart';
 import '../models/admin_notification.dart';
-import 'floating_nav_menu.dart';
 
 class ResponsiveShell extends ConsumerWidget {
   const ResponsiveShell({super.key});
@@ -40,6 +39,17 @@ class ResponsiveShell extends ConsumerWidget {
       'Op. Costs', 'WhatsApp', 'Ta2meen', 'Alerts',
     ];
 
+    final navIcons = const [
+      Icons.dashboard,
+      Icons.bed,
+      Icons.receipt_long,
+      Icons.checklist,
+      Icons.trending_up,
+      Icons.chat,
+      Icons.shield,
+      Icons.notifications,
+    ];
+
     // Unread count
     final notificationsAsync = ref.watch(adminNotificationsStreamProvider);
     final unreadCount = notificationsAsync.when(
@@ -49,13 +59,92 @@ class ResponsiveShell extends ConsumerWidget {
       error: (_, __) => 0,
     );
 
+    // ── Drawer content (shared between desktop sidebar and mobile drawer) ──
+    Widget buildNavItem(int i) {
+      final isSelected = selectedIndex == i;
+      final isMobile = !isDesktop;
+
+      if (isMobile) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          child: ListTile(
+            selected: isSelected,
+            selectedTileColor: AppColors.accent.withValues(alpha: 0.15),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            leading: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: isSelected ? AppColors.accent.withValues(alpha: 0.15) : AppColors.canvas,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(navIcons[i],
+                  size: 20,
+                  color: isSelected ? AppColors.accent : AppColors.textSecondary),
+            ),
+            title: Text(navLabels[i],
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                  color: isSelected ? AppColors.primary : AppColors.neutralDark,
+                )),
+            trailing: i == 7 && unreadCount > 0
+                ? Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppColors.danger,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text('$unreadCount',
+                        style: const TextStyle(
+                            color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                  )
+                : null,
+            onTap: () {
+              ref.read(selectedIndexProvider.notifier).state = i;
+              Navigator.pop(context); // close drawer
+            },
+          ),
+        );
+      }
+
+      // Desktop sidebar item
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        child: ListTile(
+          selected: isSelected,
+          selectedTileColor: AppColors.accent.withValues(alpha: 0.2),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          leading: Icon(navIcons[i],
+              color: isSelected ? Colors.white : Colors.white60),
+          title: Text(navLabels[i],
+              style: TextStyle(
+                color: isSelected ? Colors.white : Colors.white70,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                fontSize: 14,
+              )),
+          trailing: i == 7 && unreadCount > 0
+              ? Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: const BoxDecoration(
+                      color: AppColors.danger, shape: BoxShape.circle),
+                  child: Text('$unreadCount',
+                      style: const TextStyle(
+                          color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                )
+              : null,
+          onTap: () => ref.read(selectedIndexProvider.notifier).state = i,
+        ),
+      );
+    }
+
+    // ── Desktop: sidebar + content ──
     if (isDesktop) {
       return Scaffold(
         backgroundColor: AppColors.canvas,
         body: Row(children: [
-          // ── Sidebar ──
           Container(
-            width: 240,
+            width: 250,
             color: AppColors.primary,
             child: Column(children: [
               const SizedBox(height: 24),
@@ -63,14 +152,19 @@ class ResponsiveShell extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Row(children: [
                   Container(
-                    width: 36, height: 36,
+                    width: 40,
+                    height: 40,
                     decoration: BoxDecoration(
-                        color: AppColors.accent, borderRadius: BorderRadius.circular(10)),
-                    child: const Icon(Icons.apartment, color: Colors.white, size: 20),
+                        color: AppColors.accent,
+                        borderRadius: BorderRadius.circular(12)),
+                    child: const Icon(Icons.apartment, color: Colors.white, size: 22),
                   ),
                   const SizedBox(width: 10),
-                  const Text('Hostel\nManager',
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16, height: 1.2)),
+                  const Text('Hostel Manager',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18)),
                 ]),
               ),
               const SizedBox(height: 24),
@@ -80,36 +174,7 @@ class ResponsiveShell extends ConsumerWidget {
                 child: ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   itemCount: navLabels.length,
-                  itemBuilder: (_, i) {
-                    final isSelected = selectedIndex == i;
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: ListTile(
-                        selected: isSelected,
-                        selectedTileColor: AppColors.accent.withValues(alpha: 0.2),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        leading: Icon(
-                          _navIcons[i],
-                          color: isSelected ? Colors.white : Colors.white60,
-                        ),
-                        title: Text(navLabels[i],
-                            style: TextStyle(
-                              color: isSelected ? Colors.white : Colors.white70,
-                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                              fontSize: 14,
-                            )),
-                        onTap: () => ref.read(selectedIndexProvider.notifier).state = i,
-                        trailing: i == 7 && unreadCount > 0
-                            ? Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: const BoxDecoration(color: AppColors.danger, shape: BoxShape.circle),
-                                child: Text('$unreadCount',
-                                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-                              )
-                            : null,
-                      ),
-                    );
-                  },
+                  itemBuilder: (_, i) => buildNavItem(i),
                 ),
               ),
             ]),
@@ -119,49 +184,90 @@ class ResponsiveShell extends ConsumerWidget {
       );
     }
 
-    // ── Mobile: AppBar + Floating Menu ──
+    // ── Mobile: AppBar with hamburger + Drawer ──
     return Scaffold(
       backgroundColor: AppColors.canvas,
       appBar: AppBar(
+        leading: Builder(
+          builder: (ctx) => IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () => Scaffold.of(ctx).openDrawer(),
+          ),
+        ),
         title: Text(navLabels[selectedIndex]),
         actions: [
           if (unreadCount > 0)
             Padding(
-              padding: const EdgeInsets.only(right: 8),
+              padding: const EdgeInsets.only(right: 12),
               child: Center(
                 child: GestureDetector(
-                  onTap: () => ref.read(selectedIndexProvider.notifier).state = 7,
+                  onTap: () {
+                    ref.read(selectedIndexProvider.notifier).state = 7;
+                  },
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
                       color: AppColors.danger,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text('$unreadCount new',
-                        style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      const Icon(Icons.notifications, size: 14, color: Colors.white),
+                      const SizedBox(width: 4),
+                      Text('$unreadCount',
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                    ]),
                   ),
                 ),
               ),
             ),
         ],
       ),
-      body: screens[selectedIndex],
-      floatingActionButton: FloatingNavMenu(
-        selectedIndex: selectedIndex,
-        onSelect: (i) => ref.read(selectedIndexProvider.notifier).state = i,
+      drawer: Drawer(
+        backgroundColor: AppColors.surface,
+        shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.only(topRight: Radius.circular(20), bottomRight: Radius.circular(20))),
+        child: SafeArea(
+          child: Column(children: [
+            // Drawer header
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                      color: AppColors.primary, borderRadius: BorderRadius.circular(14)),
+                  child: const Icon(Icons.apartment, color: Colors.white, size: 24),
+                ),
+                const SizedBox(width: 12),
+                const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Hostel Manager',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                  Text('Property Management',
+                      style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                ]),
+              ]),
+            ),
+            const Divider(height: 1),
+            // Nav items
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                itemCount: navLabels.length,
+                itemBuilder: (_, i) => buildNavItem(i),
+              ),
+            ),
+            const Divider(height: 1),
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('v1.0.0',
+                  style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+            ),
+          ]),
+        ),
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      body: screens[selectedIndex],
     );
   }
 }
-
-const _navIcons = <IconData>[
-  Icons.dashboard,
-  Icons.bed,
-  Icons.receipt_long,
-  Icons.checklist,
-  Icons.trending_up,
-  Icons.chat,
-  Icons.shield,
-  Icons.notifications,
-];
