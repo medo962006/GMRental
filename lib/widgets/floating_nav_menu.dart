@@ -1,13 +1,18 @@
 // lib/widgets/floating_nav_menu.dart
-// Floating circular action menu — 3/4 circle in corner with icon-only items.
+// Floating circular action menu — radial arc from bottom-right corner.
 import 'package:flutter/material.dart';
+import 'dart:math' as math;
 import '../config/app_theme.dart';
 
 class FloatingNavMenu extends StatefulWidget {
   final int selectedIndex;
   final ValueChanged<int> onSelect;
 
-  const FloatingNavMenu({super.key, required this.selectedIndex, required this.onSelect});
+  const FloatingNavMenu({
+    super.key,
+    required this.selectedIndex,
+    required this.onSelect,
+  });
 
   @override
   State<FloatingNavMenu> createState() => _FloatingNavMenuState();
@@ -19,21 +24,36 @@ class _FloatingNavMenuState extends State<FloatingNavMenu>
   late AnimationController _ctrl;
   late Animation<double> _anim;
 
-  static const _items = [
-    _NavItem(Icons.dashboard, 'Dashboard'),
-    _NavItem(Icons.bed, 'Rooms'),
-    _NavItem(Icons.receipt_long, 'Masareef'),
-    _NavItem(Icons.checklist, 'Tasks'),
-    _NavItem(Icons.trending_up, 'Op. Costs'),
-    _NavItem(Icons.chat, 'WhatsApp'),
-    _NavItem(Icons.shield, 'Ta2meen'),
-    _NavItem(Icons.notifications, 'Alerts'),
+  static const _icons = [
+    Icons.dashboard,
+    Icons.bed,
+    Icons.receipt_long,
+    Icons.checklist,
+    Icons.trending_up,
+    Icons.chat,
+    Icons.shield,
+    Icons.notifications,
   ];
+
+  static const _labels = [
+    'Dashboard', 'Rooms', 'Masareef', 'Tasks',
+    'Op. Costs', 'WhatsApp', 'Ta2meen', 'Alerts',
+  ];
+
+  // Number of visible items in the arc
+  static const int _itemCount = 8;
+  static const double _radius = 110.0;
+  static const double _itemSize = 48.0;
+  static const double _fabSize = 56.0;
+  static const EdgeInsets _margin = EdgeInsets.only(right: 16, bottom: 16);
 
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    );
     _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack);
   }
 
@@ -54,70 +74,100 @@ class _FloatingNavMenuState extends State<FloatingNavMenu>
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        // Scrim when open
-        if (_open)
-          GestureDetector(
-            onTap: _toggle,
-            child: AnimatedOpacity(
-              opacity: _open ? 0.4 : 0,
-              duration: const Duration(milliseconds: 200),
-              child: Container(color: Colors.black),
+    final screenSize = MediaQuery.of(context).size;
+    final fabRight = _margin.right + _fabSize / 2;
+    final fabBottom = _margin.bottom + _fabSize / 2;
+
+    return SizedBox.expand(
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // Scrim
+          if (_open)
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: _toggle,
+                child: AnimatedOpacity(
+                  opacity: _open ? 0.5 : 0,
+                  duration: const Duration(milliseconds: 200),
+                  child: Container(color: Colors.black),
+                ),
+              ),
             ),
-          ),
 
-        // Radial menu items
-        ...List.generate(_items.length, (i) {
-          final angle = (180.0 / (_items.length - 1)) * i - 90; // spread across 180 degrees (3/4 circle)
-          final rad = angle * 3.14159 / 180;
-          final radius = 100.0;
+          // Menu items in a radial arc
+          ...List.generate(_itemCount, (i) {
+            // Calculate position in a 160-degree arc (from -170 to -10 degrees)
+            // This spreads items from bottom-left to top-left of the FAB
+            final startAngle = -170.0 * math.pi / 180; // start from lower-left
+            final endAngle = -10.0 * math.pi / 180;   // end at upper-left
+            final angle = startAngle + (endAngle - startAngle) * (i / (_itemCount - 1));
 
-          return AnimatedBuilder(
-            animation: _anim,
-            builder: (context, child) {
-              final progress = _anim.value;
-              final dx = _open ? (radius * progress * (i == 0 ? 0 : (i / _items.length) * 1.5)) : 0.0;
-              final dy = _open ? (-radius * progress * (1.0 - (i / _items.length) * 0.5)) : 0.0;
+            final centerX = screenSize.width - fabRight;
+            final centerY = screenSize.height - fabBottom;
 
-              return Positioned(
-                right: 20 + dx,
-                bottom: 20 + dy,
-                child: Opacity(
-                  opacity: progress,
-                  child: Transform.scale(
-                    scale: progress,
-                    child: _buildMenuItem(i),
+            return AnimatedBuilder(
+              animation: _anim,
+              builder: (context, child) {
+                final p = _anim.value;
+                final x = centerX + _radius * math.cos(angle) * p;
+                final y = centerY + _radius * math.sin(angle) * p;
+
+                return Positioned(
+                  left: x - _itemSize / 2,
+                  top: y - _itemSize / 2,
+                  child: Opacity(
+                    opacity: p,
+                    child: Transform.scale(
+                      scale: 0.5 + 0.5 * p,
+                      child: _buildItem(i),
+                    ),
+                  ),
+                );
+              },
+            );
+          }),
+
+          // Main FAB
+          Positioned(
+            right: _margin.right,
+            bottom: _margin.bottom,
+            child: GestureDetector(
+              onTap: _toggle,
+              child: Container(
+                width: _fabSize,
+                height: _fabSize,
+                decoration: BoxDecoration(
+                  color: _open ? AppColors.danger : AppColors.primary,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.shadowColor,
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    child: Icon(
+                      _open ? Icons.close : Icons.grid_view_rounded,
+                      key: ValueKey(_open),
+                      color: Colors.white,
+                      size: 24,
+                    ),
                   ),
                 ),
-              );
-            },
-          );
-        }),
-
-        // Main FAB
-        Positioned(
-          right: 16,
-          bottom: 16,
-          child: FloatingActionButton(
-            onPressed: _toggle,
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-            elevation: 6,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            child: AnimatedRotation(
-              turns: _open ? 0.125 : 0,
-              duration: const Duration(milliseconds: 200),
-              child: Icon(_open ? Icons.close : Icons.apps, size: 26),
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  Widget _buildMenuItem(int i) {
-    final item = _items[i];
+  Widget _buildItem(int i) {
     final isSelected = widget.selectedIndex == i;
 
     return GestureDetector(
@@ -125,34 +175,33 @@ class _FloatingNavMenuState extends State<FloatingNavMenu>
         widget.onSelect(i);
         _toggle();
       },
-      child: Container(
-        width: 48,
-        height: 48,
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.accent : AppColors.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isSelected ? AppColors.accent : AppColors.borderMuted,
-            width: 1.5,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.shadowColor,
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+      child: Tooltip(
+        message: _labels[i],
+        child: Container(
+          width: _itemSize,
+          height: _itemSize,
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.accent : AppColors.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isSelected ? AppColors.accent : AppColors.borderMuted,
+              width: 1.5,
             ),
-          ],
-        ),
-        child: Icon(item.icon,
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.shadowColor,
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Icon(
+            _icons[i],
             size: 22,
-            color: isSelected ? Colors.white : AppColors.textSecondary),
+            color: isSelected ? Colors.white : AppColors.textSecondary,
+          ),
+        ),
       ),
     );
   }
-}
-
-class _NavItem {
-  final IconData icon;
-  final String label;
-  const _NavItem(this.icon, this.label);
 }
