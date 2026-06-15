@@ -1,33 +1,3 @@
-# Flutter / Dart
-.dart_tool/
-.flutter-plugins
-.flutter-plugins-dependencies
-.packages
-.pub-cache/
-.pub/
-build/
-coverage/
-
-# IDE
-.idea/
-.vscode/
-*.iml
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-desktop.ini
-
-# Keystore / secrets
-android/key.properties
-android/app/keystore.jks
-*.jks
-*.keystore
-
-# Supabase config with keys (keep template only)
-# lib/config/app_config.dart  # Uncomment if you want to exclude secrets
-
-# Scripts
-import_tenants*.py
+# Backup files
+backups/
+backup_*.json
