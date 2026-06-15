@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/app_theme.dart';
 import '../models/operational_cost.dart';
 import '../providers/app_providers.dart';
+import '../services/auth_guard.dart';
+import '../models/operational_cost.dart';
 
 class OperationalCostsScreen extends ConsumerWidget {
   const OperationalCostsScreen({super.key});
@@ -59,8 +61,107 @@ class OperationalCostsScreen extends ConsumerWidget {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {},
+        onPressed: () => _showAddDialog(context, ref),
         child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  void _showAddDialog(BuildContext context, WidgetRef ref) {
+    final titleCtrl = TextEditingController();
+    final amountCtrl = TextEditingController();
+    String costType = 'other';
+    DateTime billingDate = DateTime.now();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Add Operational Cost'),
+          content: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              TextField(
+                controller: titleCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Title',
+                  hintText: 'e.g. Electricity bill',
+                  border: OutlineInputBorder(),
+                ),
+                autofocus: true,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: amountCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Amount (LE)',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: costType,
+                decoration: const InputDecoration(labelText: 'Type', border: OutlineInputBorder()),
+                items: const [
+                  DropdownMenuItem(value: 'salary', child: Text('Salary')),
+                  DropdownMenuItem(value: 'ad_spend', child: Text('Ad Spend')),
+                  DropdownMenuItem(value: 'subscription', child: Text('Subscription')),
+                  DropdownMenuItem(value: 'other', child: Text('Other')),
+                ],
+                onChanged: (v) => setDialogState(() => costType = v!),
+              ),
+              const SizedBox(height: 12),
+              InkWell(
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: billingDate,
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime(2030),
+                  );
+                  if (picked != null) setDialogState(() => billingDate = picked);
+                },
+                child: InputDecorator(
+                  decoration: const InputDecoration(labelText: 'Billing Date', border: OutlineInputBorder()),
+                  child: Text('${billingDate.year}-${billingDate.month.toString().padLeft(2, '0')}-${billingDate.day.toString().padLeft(2, '0')}'),
+                ),
+              ),
+            ]),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            FilledButton(
+              onPressed: () async {
+                if (titleCtrl.text.trim().isEmpty) return;
+                final amount = double.tryParse(amountCtrl.text.trim());
+                if (amount == null || amount <= 0) return;
+
+                if (!await showPasswordDialog(context, ref)) return;
+
+                final repo = ref.read(supabaseRepositoryProvider);
+                try {
+                  await repo.addOperationalCost(OperationalCost(
+                    id: '',
+                    title: titleCtrl.text.trim(),
+                    amount: amount,
+                    costType: costType,
+                    billingDate: billingDate,
+                    createdAt: DateTime.now(),
+                  ));
+                  ref.invalidate(operationalCostsStreamProvider);
+                  if (ctx.mounted) Navigator.pop(ctx);
+                } catch (e) {
+                  if (ctx.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+                    );
+                  }
+                }
+              },
+              child: const Text('Add'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -133,7 +234,9 @@ class _CostCard extends ConsumerWidget {
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
               onPressed: () async {
+                if (!await showPasswordDialog(context, ref)) return;
                 await ref.read(supabaseRepositoryProvider).deleteOperationalCost(cost.id);
+                ref.invalidate(operationalCostsStreamProvider);
               },
             ),
           ],
