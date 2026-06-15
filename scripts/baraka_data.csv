@@ -1,0 +1,47 @@
+Room Number,Floor,Room Status,Tenant Name,Monthly Rent (EGP),Payment Day,Phone Number,Nationality,Entry Month,Last Payment Month,Payment Status
+Room 1,Ground floor,Occupied,حازم ناصر محمد (السويدي),10000,8,201040003307,مصري,1,2026-06,Paid
+Room 2,Ground floor,Occupied,Ibrahim,-,-,,,2027-06,Paid
+Room 3,Ground floor,Occupied,نادين طارق,9500,5,201102808005,مصري,1,2026-06,Paid
+Room 4,Ground floor,Occupied,السودانية,12500,6,,سودان,5,2026-05,Late
+Room 5,Ground floor,Occupied,احمد بسيوني,10500,22,201270051555,مصري,12,,Paid
+Room 6,Ground floor,Occupied,محمد فرحات,9500,1,201032767078,مصري,1,2026-06,Paid
+Room 7,Ground floor,Occupied,احمد رمضان,8000,22,201279995585,مصري,12,2026-05,Paid
+Room 8,Ground floor,Occupied,سلمى,9500,6,+201099752032,مصربة,6,2026-06,Paid
+Room 9,Ground floor,Occupied,منال السودانية,10500,18,+201140843990,سودان,5,2026-05,Late
+Room 10,Ground floor,Occupied,ابراهيم محمد صلاح,12500,29,201010010169,مصري,12,,Paid
+Room 11,Ground floor,Occupied,انس نبيل,8000,1,201093247363,مصري,12,2026-06,Paid
+Room 12,Ground floor,Occupied,عمر وليد سعيد,8000,3,201093247363,مصري,1,2026-06,Paid
+Room 13,Ground floor,Occupied,ملك,9500,4,,مصربة,6,2026-06,Paid
+Room 1-,First floor,Occupied,محمد محمد عقل,12000,1,201220022855,مصري,1,2026-06,Paid
+Room 2-,First floor,Occupied,دكتور محمد الماهي (بنت رئيس اسكندرية),10000,6,201010840842,مصري,1,2026-06,Paid
+Room 3-,First floor,Vacant,,,,,,,,
+Room 4-,First floor,Occupied,ابراهيم كمال,7000,24,201100230038,مصري,12,2026-05,Paid
+Room 5-,First floor,Occupied,ادهم حازم,9000,22,+201118388599,مصري,2,2026-05,Paid
+Room 6-,First floor,Occupied,زياد محمد جابر,9500,25,+201013795155,مصري,5,2026-05,Paid
+Room 7-,First floor,Vacant,,,,,,,,
+Room 8-,First floor,Occupied,نور,8000,1,+201066571668,مصري,6,2026-06,Paid
+Room 9-,First floor,Vacant,,,,,,,,
+Room 10-,First floor,Occupied,جمانه مروان شاهين (غزه),10000,1,201080083589,مصري,3,2026-06,Paid
+Room 11-,First floor,Occupied,يارا,11000,16,,مصربة,5,2026-05,Late
+Room 12-,First floor,Occupied,ساجي وليد,10000,10,201018919666,مصري,1,2026-06,Paid
+Room 13-,First floor,Occupied,اسلام فؤاد,10000,12,201092205125,مصري,1,,Late
+Room 14-,First floor,Vacant,,,,,,,,
+Room 15-,First floor,Occupied,علي,10000,1,,مصري,6,2026-06,Paid
+Room 1--,Second floor,Occupied,احمد محروس سعودي,13500,22,201055442159,مصري,1,2026-05,Paid
+Room 2--,Second floor,Occupied,سلوى,13000,2,,امريكية,6,2026-06,Paid
+Room 3--,Second floor,Vacant,,,,,,,,
+Room 4--,Second floor,Vacant,,,,,,,,
+Room 5--,Second floor,Occupied,حسام محمد مصطفى موسى,9000,14,201007210279,مصري,2,,Late
+Room 6--,Second floor,Vacant,,,,,,,,
+Room 7--,Second floor,Occupied,حسام حنفي,9000,26,201024114040,مصري,1,,Paid
+Room 8--,Second floor,Occupied,عبد الرحمن احمد عبدالرسول,9000,30,201013692231,مصري,1,2026-05,Paid
+Room 9--,Second floor,Vacant,,,,,,,,
+Room 10--,Second floor,Vacant,,,,,,,,
+Room 11--,Second floor,Vacant,,,,,,,,
+Room 12--,Second floor,Occupied,محمد جمال حسن و أشرف جمال حسن (التوأم),13000,31,+201028322797,مصري,1,,Paid
+Room 13--,Second floor,Occupied,احمد مصطفى علي جعيطر (Designer),12000,1,+201004382844,مصري,2,2026-06,Paid
+Room 14--,Second floor,Vacant,,,,,,,,
+Room 1---,Roof,Occupied,العقيد ايمن,10000,1,,مصري,3,2026-04,Late
+Room 2---,Roof,Occupied,عقيد ايمن فرغلي,10000,1,+201003607360,مصري,3,2026-04,Late
+Room 3---,Roof,Vacant,,,,,,,,
+Room 4---,Roof,Occupied,اسامه فرج محمد الامام,12500,2,+201105178123,مصري,4,2026-06,Paid

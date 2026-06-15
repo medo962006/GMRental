@@ -1,10 +1,11 @@
 // lib/screens/notifications_screen.dart
-// Phase 3.7: Notification Center — design system overhaul.
+// Notification Center — create, read, dismiss, delete.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/app_theme.dart';
 import '../models/admin_notification.dart';
 import '../providers/app_providers.dart';
+import '../repositories/supabase_repository.dart';
 
 class NotificationsScreen extends ConsumerWidget {
   const NotificationsScreen({super.key});
@@ -26,8 +27,7 @@ class NotificationsScreen extends ConsumerWidget {
                 children: [
                   Icon(Icons.notifications_off, size: 48, color: AppColors.textSecondary),
                   SizedBox(height: 12),
-                  Text('No notifications',
-                      style: TextStyle(color: AppColors.textSecondary)),
+                  Text('No notifications', style: TextStyle(color: AppColors.textSecondary)),
                 ],
               ),
             );
@@ -40,6 +40,76 @@ class NotificationsScreen extends ConsumerWidget {
                 _NotificationCard(notification: notifications[i]),
           );
         },
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _showCreateForm(context, ref),
+        icon: const Icon(Icons.add),
+        label: const Text('New Alert'),
+      ),
+    );
+  }
+
+  void _showCreateForm(BuildContext ctx, WidgetRef ref) {
+    final titleCtrl = TextEditingController();
+    final bodyCtrl = TextEditingController();
+    String category = 'general';
+
+    showDialog(
+      context: ctx,
+      builder: (dCtx) => StatefulBuilder(
+        builder: (dCtx, setDialogState) => AlertDialog(
+          title: const Text('Create Notification'),
+          content: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              TextField(
+                controller: titleCtrl,
+                decoration: const InputDecoration(labelText: 'Title', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: bodyCtrl,
+                decoration: const InputDecoration(labelText: 'Body', border: OutlineInputBorder()),
+                maxLines: 3,
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: category,
+                decoration: const InputDecoration(labelText: 'Category', border: OutlineInputBorder()),
+                items: const [
+                  DropdownMenuItem(value: 'general', child: Text('General')),
+                  DropdownMenuItem(value: 'rent_due', child: Text('Rent Due')),
+                  DropdownMenuItem(value: 'insurance_alert', child: Text('Insurance Alert')),
+                  DropdownMenuItem(value: 'task_pending', child: Text('Task Pending')),
+                  DropdownMenuItem(value: 'payment_received', child: Text('Payment Received')),
+                  DropdownMenuItem(value: 'tenant_checkout', child: Text('Tenant Checkout')),
+                ],
+                onChanged: (v) => setDialogState(() => category = v!),
+              ),
+            ]),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dCtx), child: const Text('Cancel')),
+            FilledButton(
+              onPressed: () async {
+                if (titleCtrl.text.isEmpty || bodyCtrl.text.isEmpty) return;
+                try {
+                  await ref.read(supabaseRepositoryProvider).createNotification(
+                    title: titleCtrl.text,
+                    body: bodyCtrl.text,
+                    category: category,
+                  );
+                  if (dCtx.mounted) Navigator.pop(dCtx);
+                  ref.invalidate(adminNotificationsStreamProvider);
+                } catch (e) {
+                  if (dCtx.mounted) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Error: $e')));
+                  }
+                }
+              },
+              child: const Text('Create'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -56,12 +126,16 @@ class _NotificationCard extends ConsumerWidget {
         ? AppColors.warning
         : notification.isInsuranceAlert
             ? AppColors.accent
-            : AppColors.infoText;
+            : notification.isTaskPending
+                ? AppColors.secondary
+                : AppColors.infoText;
     final icon = notification.isRentDue
         ? Icons.payments
         : notification.isInsuranceAlert
             ? Icons.shield
-            : Icons.checklist;
+            : notification.isTaskPending
+                ? Icons.checklist
+                : Icons.notifications;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -126,8 +200,7 @@ class _NotificationCard extends ConsumerWidget {
                         )),
                     const SizedBox(height: 4),
                     Text(_timeAgo(notification.createdAt),
-                        style: TextStyle(
-                            fontSize: 10, color: AppColors.textSecondary)),
+                        style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
                   ],
                 ),
               ),
@@ -155,9 +228,7 @@ class _NotificationCard extends ConsumerWidget {
                     ),
                   const SizedBox(height: 4),
                   GestureDetector(
-                    onTap: () => ref
-                        .read(supabaseRepositoryProvider)
-                        .deleteNotification(notification.id),
+                    onTap: () => _confirmDelete(context, ref),
                     child: const Icon(Icons.close, size: 14, color: AppColors.textSecondary),
                   ),
                 ],
@@ -165,6 +236,34 @@ class _NotificationCard extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _confirmDelete(BuildContext ctx, WidgetRef ref) {
+    showDialog(
+      context: ctx,
+      builder: (dCtx) => AlertDialog(
+        title: const Text('Delete Notification'),
+        content: const Text('This notification will be permanently deleted.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dCtx), child: const Text('Cancel')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+            onPressed: () async {
+              try {
+                await ref.read(supabaseRepositoryProvider).deleteNotification(notification.id);
+                if (dCtx.mounted) Navigator.pop(dCtx);
+                ref.invalidate(adminNotificationsStreamProvider);
+              } catch (e) {
+                if (dCtx.mounted) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Error: $e')));
+                }
+              }
+            },
+            child: const Text('Delete'),
+          ),
+        ],
       ),
     );
   }

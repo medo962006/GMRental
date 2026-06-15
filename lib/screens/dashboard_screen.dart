@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../config/app_theme.dart';
 import '../models/tenant.dart';
+import '../models/room.dart';
 import '../models/masareef.dart';
 import '../providers/app_providers.dart';
 import '../services/pdf_report_service.dart';
@@ -15,19 +16,28 @@ class DashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final statsAsync = ref.watch(dashboardStatsProvider);
+    final buildingId = ref.watch(currentBuildingIdProvider);
+    final roomsAsync = ref.watch(roomsStreamProvider(buildingId));
     final isDesktop = MediaQuery.of(context).size.width > 800;
 
     return Scaffold(
       body: statsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
-        data: (stats) => _buildContent(context, ref, stats, isDesktop),
+        data: (stats) {
+          final rooms = roomsAsync.when(
+            data: (r) => r,
+            loading: () => <Room>[],
+            error: (_, __) => <Room>[],
+          );
+          return _buildContent(context, ref, stats, isDesktop, rooms);
+        },
       ),
     );
   }
 
   Widget _buildContent(
-      BuildContext context, WidgetRef ref, Map<String, dynamic> stats, bool isDesktop) {
+      BuildContext context, WidgetRef ref, Map<String, dynamic> stats, bool isDesktop, List<Room> rooms) {
     final totalCollected = (stats['totalRentCollected'] as num?)?.toDouble() ?? 0;
     final totalExpenses = (stats['totalExpenses'] as num?)?.toDouble() ?? 0;
     final totalOpCosts = (stats['totalOpCosts'] as num?)?.toDouble() ?? 0;
@@ -106,7 +116,13 @@ class DashboardScreen extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 12),
-            ...overdueTenants.map((t) => _OverdueCard(tenant: t)),
+            ...overdueTenants.map((t) {
+              final room = rooms.firstWhere(
+                (r) => r.id == t.roomId,
+                orElse: () => Room(id: 0, roomNumber: '—', status: 'void', monthlyRent: 0),
+              );
+              return _OverdueCard(tenant: t, roomDisplay: room.displayRoomNumber);
+            }),
             const SizedBox(height: 24),
           ],
 
@@ -180,7 +196,8 @@ class DashboardScreen extends ConsumerWidget {
 
 class _OverdueCard extends StatelessWidget {
   final Tenant tenant;
-  const _OverdueCard({required this.tenant});
+  final String roomDisplay;
+  const _OverdueCard({required this.tenant, required this.roomDisplay});
 
   @override
   Widget build(BuildContext context) {
@@ -212,7 +229,7 @@ class _OverdueCard extends StatelessWidget {
                   Text(tenant.name,
                       style: const TextStyle(
                           fontWeight: FontWeight.w600, fontSize: 14)),
-                  Text('Room ${tenant.roomId ?? '—'} · $daysOverdue days overdue',
+                  Text('Room $roomDisplay · $daysOverdue days overdue',
                       style: const TextStyle(
                           fontSize: 12, color: AppColors.textSecondary)),
                 ],
