@@ -1,5 +1,5 @@
 // lib/services/notification_service.dart
-// Phase 3.7: Local push notifications engine.
+// Phase 3.7: Local push notifications + Supabase admin_notifications sync.
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/tenant.dart';
@@ -43,17 +43,43 @@ class NotificationService {
     await _plugin.show(id, title, body, details);
   }
 
+  /// Create a notification in Supabase AND fire a local push.
+  /// Returns the created notification ID, or null on failure.
+  Future<String?> createRemoteNotification({
+    required String title,
+    required String body,
+    required String category,
+  }) async {
+    try {
+      final client = Supabase.instance.client;
+      final data = await client.from('admin_notifications').insert({
+        'title': title,
+        'body': body,
+        'category': category,
+      }).select().single();
+      final id = data['id'] as String;
+      // Also fire local push
+      await show(id: id.hashCode, title: title, body: body);
+      return id;
+    } catch (e) {
+      // Still try local push even if Supabase fails
+      try {
+        await show(id: title.hashCode, title: title, body: body);
+      } catch (_) {}
+      return null;
+    }
+  }
+
   /// Check for overdue rent and fire notifications.
   Future<void> checkRentDueAlerts(List<Tenant> tenants) async {
     for (final t in tenants) {
       if (t.isUnpaid && t.dueDate != null) {
         final daysOverdue = DateTime.now().difference(t.dueDate!).inDays;
         if (daysOverdue >= 0) {
-          await show(
-            id: t.id.hashCode,
+          await createRemoteNotification(
             title: 'Rent Due: Room ${t.roomId}',
-            body:
-                '${t.name}\'s rent is ${daysOverdue == 0 ? "due today" : "$daysOverdue days overdue"}. Please collect payment.',
+            body: '${t.name}\'s rent is ${daysOverdue == 0 ? "due today" : "$daysOverdue days overdue"}. Please collect payment.',
+            category: 'rent_due',
           );
         }
       }
@@ -66,11 +92,10 @@ class NotificationService {
       if (l.hasRemaining && l.dueDateForRemaining != null) {
         final daysUntil = l.dueDateForRemaining!.difference(DateTime.now()).inDays;
         if (daysUntil <= 0) {
-          await show(
-            id: l.id.hashCode + 10000,
+          await createRemoteNotification(
             title: 'Ta2meen Reminder',
-            body:
-                'Insurance payment of ${l.remainingBalance.toStringAsFixed(0)} LE is ${daysUntil == 0 ? "due today" : "${-daysUntil} days overdue"}.',
+            body: 'Insurance payment of ${l.remainingBalance.toStringAsFixed(0)} LE is ${daysUntil == 0 ? "due today" : "${-daysUntil} days overdue"}.',
+            category: 'insurance_alert',
           );
         }
       }
@@ -84,11 +109,10 @@ class NotificationService {
       if (t.isPending) {
         final hoursOld = now.difference(t.createdAt).inHours;
         if (hoursOld >= 24) {
-          await show(
-            id: t.id.hashCode + 20000,
+          await createRemoteNotification(
             title: 'Pending Task: ${t.title}',
-            body:
-                'Task "${t.title}" has been pending for ${hoursOld}h. Assigned to: ${t.assignedTo}',
+            body: 'Task "${t.title}" has been pending for ${hoursOld}h. Assigned to: ${t.assignedTo}',
+            category: 'task_pending',
           );
         }
       }
