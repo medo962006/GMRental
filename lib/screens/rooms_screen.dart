@@ -8,6 +8,7 @@ import '../models/room.dart';
 import '../models/tenant.dart';
 import '../providers/app_providers.dart';
 import '../repositories/supabase_repository.dart';
+import '../services/auth_guard.dart';
 
 enum RoomFilter { all, occupied, void_, unpaid }
 
@@ -426,6 +427,18 @@ class _RoomActionsSheetState extends ConsumerState<_RoomActionsSheet> {
 
   static const _deviceCode = 'ADMIN001';
 
+  /// Shows password dialog and returns true if authenticated.
+  Future<bool> _requireAuth() async {
+    return showPasswordDialog(context, ref);
+  }
+
+  /// Wraps an async action with password gate. Returns true if action ran.
+  Future<bool> _guarded(Future<void> Function() action) async {
+    if (!await _requireAuth()) return false;
+    await action();
+    return true;
+  }
+
   Future<void> _log({
     required String action,
     required String entityType,
@@ -455,7 +468,11 @@ class _RoomActionsSheetState extends ConsumerState<_RoomActionsSheet> {
     }
   }
 
-  Future<void> _run(Future<void> fn, {String? logAction, String? logEntity, String? logEntityId, String? logEntityName, Map<String, dynamic>? logOld, Map<String, dynamic>? logNew, String? logDetails}) async {
+  Future<void> _run(Future<void> fn, {String? logAction, String? logEntity, String? logEntityId, String? logEntityName, Map<String, dynamic>? logOld, Map<String, dynamic>? logNew, String? logDetails, bool requiresAuth = false}) async {
+    if (requiresAuth) {
+      final authed = await _requireAuth();
+      if (!authed) return;
+    }
     setState(() => _loading = true);
     try {
       await fn;
@@ -537,6 +554,7 @@ class _RoomActionsSheetState extends ConsumerState<_RoomActionsSheet> {
                       logOld: {'payment_status': 'unpaid'},
                       logNew: {'payment_status': 'paid'},
                       logDetails: 'Marked ${tenant!.name} as paid',
+                      requiresAuth: true,
                     )),
                   // Edit tenant
                   _action(Icons.edit, 'تعديل الساكن', AppColors.secondary, () {
@@ -558,6 +576,7 @@ class _RoomActionsSheetState extends ConsumerState<_RoomActionsSheet> {
                     logOld: {'status': 'active'},
                     logNew: {'status': 'archived'},
                     logDetails: 'Archived ${tenant!.name}',
+                    requiresAuth: true,
                   )),
                   // Delete tenant
                   _action(Icons.delete_forever, 'مسح الساكن', AppColors.danger, () => _run(
@@ -567,6 +586,7 @@ class _RoomActionsSheetState extends ConsumerState<_RoomActionsSheet> {
                     logEntityId: tenant!.id,
                     logEntityName: tenant!.name,
                     logDetails: 'Deleted ${tenant!.name}',
+                    requiresAuth: true,
                   )),
                 ] else ...[
                   // Assign tenant
@@ -590,6 +610,7 @@ class _RoomActionsSheetState extends ConsumerState<_RoomActionsSheet> {
                   logEntityId: room.id.toString(),
                   logEntityName: 'Room ${room.displayRoomNumber}',
                   logDetails: 'Deleted Room ${room.displayRoomNumber}',
+                  requiresAuth: true,
                 )),
 
                 const SizedBox(height: 8),
@@ -656,6 +677,10 @@ class _RoomActionsSheetState extends ConsumerState<_RoomActionsSheet> {
             TextButton(onPressed: () => Navigator.pop(dCtx), child: const Text('إلغاء')),
             FilledButton(
               onPressed: () async {
+                // Password gate
+                final authed = await showPasswordDialog(ctx, ref);
+                if (!authed) return;
+
                 final now = DateTime.now();
                 final day = int.tryParse(dayCtrl.text) ?? 1;
                 final rent = double.tryParse(rentCtrl.text) ?? 0;
@@ -787,6 +812,10 @@ class _RoomActionsSheetState extends ConsumerState<_RoomActionsSheet> {
             TextButton(onPressed: () => Navigator.pop(dCtx), child: const Text('إلغاء')),
             FilledButton(
               onPressed: () async {
+                // Password gate
+                final authed = await showPasswordDialog(ctx, ref);
+                if (!authed) return;
+
                 final rent = double.tryParse(rentCtrl.text) ?? room.monthlyRent;
                 try {
                   await repo.updateRoom(room.copyWith(
