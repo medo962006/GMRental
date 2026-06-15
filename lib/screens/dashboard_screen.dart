@@ -1,12 +1,16 @@
 // lib/screens/dashboard_screen.dart
 // Dashboard — building tabs, compact pie chart, financial overview, overdue tenants.
 import 'dart:math';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/app_theme.dart';
 import '../models/tenant.dart';
 import '../models/room.dart';
+import '../models/masareef.dart';
+import '../models/operational_cost.dart';
 import '../providers/app_providers.dart';
+import '../services/pdf_report_service.dart';
 
 // ══════════════════════════════════════════════════════════════
 // BUILDING TAB NAMES
@@ -136,8 +140,39 @@ class DashboardScreen extends ConsumerWidget {
               );
             }),
           ],
+
+          // ── PDF Export ──
+          const SizedBox(height: 24),
+          Center(
+            child: FilledButton.icon(
+              onPressed: () => _exportPdfReport(context, ref, stats, rooms, tenants),
+              icon: const Icon(Icons.picture_as_pdf),
+              label: Text(kIsWeb ? 'Download Financial Report' : 'Export Financial Report'),
+            ),
+          ),
         ],
       ),
+    );
+  }
+
+  Future<void> _exportPdfReport(
+    BuildContext context,
+    WidgetRef ref,
+    Map<String, dynamic> stats,
+    List<Room> rooms,
+    List<Tenant> tenants,
+  ) async {
+    // We need masareef + opCosts — fetch them
+    final repo = ref.read(supabaseRepositoryProvider);
+    final expenses = await repo.getMasareef();
+    final opCosts = await repo.getOperationalCosts();
+
+    await PdfReportService.generateAndPrint(
+      dashboardStats: stats,
+      tenants: tenants,
+      rooms: rooms,
+      expenses: expenses,
+      opCosts: opCosts,
     );
   }
 }

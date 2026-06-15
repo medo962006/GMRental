@@ -1,4 +1,6 @@
 // lib/services/pdf_report_service.dart
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -29,12 +31,20 @@ class PdfReportService {
     for (final t in tenants) {
       if (!t.isActive) continue;
       final rent = t.roomId != null ? (roomMap[t.roomId] ?? 0) : 0;
-      if (t.isPaid) { collected += rent; } else { due += rent; }
+      if (t.isPaid) {
+        collected += rent;
+      } else {
+        due += rent;
+      }
     }
 
-    final salaryCosts = opCosts.where((c) => c.isSalary).fold(0.0, (s, c) => s + c.amount);
-    final adCosts = opCosts.where((c) => c.isAdSpend).fold(0.0, (s, c) => s + c.amount);
-    final subCosts = opCosts.where((c) => c.isSubscription).fold(0.0, (s, c) => s + c.amount);
+    final salaryCosts =
+        opCosts.where((c) => c.isSalary).fold(0.0, (s, c) => s + c.amount);
+    final adCosts =
+        opCosts.where((c) => c.isAdSpend).fold(0.0, (s, c) => s + c.amount);
+    final subCosts = opCosts
+        .where((c) => c.isSubscription)
+        .fold(0.0, (s, c) => s + c.amount);
     final allCosts = totalExpenses + totalOpCosts;
     final now = DateTime.now();
     final occupiedCount = rooms.where((r) => r.isOccupied).length;
@@ -64,9 +74,15 @@ class PdfReportService {
         border: pw.TableBorder.all(color: PdfColors.grey300),
         children: [
           _makeHRow(['Metric', 'Amount (LE)', 'Notes']),
-          _makeDRow(['Total Rent Expected', _fmt(totalExpected), '$occupiedCount occupied rooms']),
-          _makeDRow(['Rent Collected', _fmt(collected), '$paidCount paid tenants']),
-          _makeDRow(['Rent Outstanding', _fmt(due), '$unpaidCount unpaid tenants']),
+          _makeDRow([
+            'Total Rent Expected',
+            _fmt(totalExpected),
+            '$occupiedCount occupied rooms'
+          ]),
+          _makeDRow(
+              ['Rent Collected', _fmt(collected), '$paidCount paid tenants']),
+          _makeDRow(
+              ['Rent Outstanding', _fmt(due), '$unpaidCount unpaid tenants']),
         ],
       ),
       pw.SizedBox(height: 20),
@@ -99,12 +115,14 @@ class PdfReportService {
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
             pw.Text('Net Cash Position',
-                style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+                style:
+                    pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
             pw.Text('${_fmt(netBalanceVal)} LE',
                 style: pw.TextStyle(
                   fontSize: 18,
                   fontWeight: pw.FontWeight.bold,
-                  color: netBalanceVal >= 0 ? PdfColors.green800 : PdfColors.red800,
+                  color:
+                      netBalanceVal >= 0 ? PdfColors.green800 : PdfColors.red800,
                 )),
           ],
         ),
@@ -132,6 +150,17 @@ class PdfReportService {
       ),
     );
 
+    // ── Web: download via browser ──
+    if (kIsWeb) {
+      final bytes = await pdf.save();
+      await Printing.sharePdf(
+        bytes: bytes,
+        filename: 'hostel_report_${now.year}-${now.month}-${now.day}.pdf',
+      );
+      return;
+    }
+
+    // ── Mobile/Desktop: native print dialog ──
     await Printing.layoutPdf(onLayout: (PdfPageFormat format) async => pdf.save());
   }
 
@@ -140,19 +169,25 @@ class PdfReportService {
   static pw.TableRow _makeHRow(List<String> cells) {
     return pw.TableRow(
       decoration: const pw.BoxDecoration(color: PdfColors.grey200),
-      children: cells.map((c) => pw.Padding(
-        padding: const pw.EdgeInsets.all(8),
-        child: pw.Text(c, style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11)),
-      )).toList(),
+      children: cells
+          .map((c) => pw.Padding(
+                padding: const pw.EdgeInsets.all(8),
+                child: pw.Text(c,
+                    style: pw.TextStyle(
+                        fontWeight: pw.FontWeight.bold, fontSize: 11)),
+              ))
+          .toList(),
     );
   }
 
   static pw.TableRow _makeDRow(List<String> cells) {
     return pw.TableRow(
-      children: cells.map((c) => pw.Padding(
-        padding: const pw.EdgeInsets.all(8),
-        child: pw.Text(c, style: const pw.TextStyle(fontSize: 10)),
-      )).toList(),
+      children: cells
+          .map((c) => pw.Padding(
+                padding: const pw.EdgeInsets.all(8),
+                child: pw.Text(c, style: const pw.TextStyle(fontSize: 10)),
+              ))
+          .toList(),
     );
   }
 

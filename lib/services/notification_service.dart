@@ -1,5 +1,8 @@
 // lib/services/notification_service.dart
 // Phase 3.7: Local push notifications + Supabase admin_notifications sync.
+// Web: uses browser Notification API via dart:js. Mobile: flutter_local_notifications.
+import 'dart:js' as js;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/tenant.dart';
@@ -16,6 +19,7 @@ class NotificationService {
 
   Future<void> initialize() async {
     if (_initialized) return;
+    if (kIsWeb) return; // No-op on web — browser handles it natively
 
     const androidSettings =
         AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -29,6 +33,11 @@ class NotificationService {
     required String title,
     required String body,
   }) async {
+    if (kIsWeb) {
+      _showWebNotification(title: title, body: body);
+      return;
+    }
+
     if (!_initialized) await initialize();
 
     const details = NotificationDetails(
@@ -41,6 +50,39 @@ class NotificationService {
       ),
     );
     await _plugin.show(id, title, body, details);
+  }
+
+  /// Show a browser notification (works in WebView on modern Android too)
+  void _showWebNotification({required String title, required String body}) {
+    try {
+      final context = js.context;
+      if (context == null) return;
+
+      // Check if Notification API exists
+      final hasNotification = context.hasProperty('Notification');
+      if (!hasNotification) return;
+
+      final perm = context['Notification']['permission'];
+      if (perm == 'denied') return;
+
+      // Escape strings for JS
+      final t = title.replaceAll('\\', '\\\\').replaceAll("'", "\\'").replaceAll('"', '\\"');
+      final b = body.replaceAll('\\', '\\\\').replaceAll("'", "\\'").replaceAll('"', '\\"');
+
+      if (perm == 'default') {
+        context.callMethod('eval', [
+          "Notification.requestPermission().then(p => { if (p === 'granted') new Notification('$t', {body: '$b'}); })"
+        ]);
+        return;
+      }
+
+      // Permission granted — show notification
+      context.callMethod('eval', [
+        "new Notification('$t', {body: '$b'})"
+      ]);
+    } catch (_) {
+      // Silent fail — don't crash the app
+    }
   }
 
   /// Create a notification in Supabase AND fire a local push.
@@ -66,7 +108,6 @@ class NotificationService {
           .maybeSingle();
 
       if (existing != null) {
-        // Already exists and unread — skip, just fire local push
         final id = existing['id'] as String;
         await show(id: id.hashCode, title: title, body: body);
         return id;
@@ -79,11 +120,9 @@ class NotificationService {
         'category': category,
       }).select().single();
       final id = data['id'] as String;
-      // Also fire local push
       await show(id: id.hashCode, title: title, body: body);
       return id;
     } catch (e) {
-      // Still try local push even if Supabase fails
       try {
         await show(id: title.hashCode, title: title, body: body);
       } catch (_) {}
@@ -99,7 +138,8 @@ class NotificationService {
         if (daysOverdue >= 0) {
           await createRemoteNotification(
             title: 'Rent Due: Room ${t.roomId}',
-            body: '${t.name}\'s rent is ${daysOverdue == 0 ? "due today" : "$daysOverdue days overdue"}. Please collect payment.',
+            body:
+                '${t.name}\'s rent is ${daysOverdue == 0 ? "due today" : "$daysOverdue days overdue"}. Please collect payment.',
             category: 'rent_due',
           );
         }
@@ -111,11 +151,13 @@ class NotificationService {
   Future<void> checkInsuranceAlerts(List<InsuranceLedger> ledgers) async {
     for (final l in ledgers) {
       if (l.hasRemaining && l.dueDateForRemaining != null) {
-        final daysUntil = l.dueDateForRemaining!.difference(DateTime.now()).inDays;
+        final daysUntil =
+            l.dueDateForRemaining!.difference(DateTime.now()).inDays;
         if (daysUntil <= 0) {
           await createRemoteNotification(
             title: 'Ta2meen Reminder: Insurance #${l.id}',
-            body: 'Insurance payment of ${l.remainingBalance.toStringAsFixed(0)} LE is ${daysUntil == 0 ? "due today" : "${-daysUntil} days overdue"}.',
+            body:
+                'Insurance payment of ${l.remainingBalance.toStringAsFixed(0)} LE is ${daysUntil == 0 ? "due today" : "${-daysUntil} days overdue"}.',
             category: 'insurance_alert',
           );
         }
@@ -132,7 +174,8 @@ class NotificationService {
         if (hoursOld >= 24) {
           await createRemoteNotification(
             title: 'Pending Task: ${t.title}',
-            body: 'Task "${t.title}" has been pending for ${hoursOld}h. Assigned to: ${t.assignedTo}',
+            body:
+                'Task "${t.title}" has been pending for ${hoursOld}h. Assigned to: ${t.assignedTo}',
             category: 'task_pending',
           );
         }
