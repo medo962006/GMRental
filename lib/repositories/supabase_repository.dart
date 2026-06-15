@@ -398,10 +398,10 @@ class SupabaseRepository {
   // DASHBOARD STATS (enhanced with Phase 2 data)
   // ════════════════════════════════════════════════════════
 
-  Future<Map<String, dynamic>> getDashboardStats() async {
-    final tenants = await getActiveTenants();
+  Future<Map<String, dynamic>> getDashboardStats({int? buildingId}) async {
+    final tenants = await getActiveTenants(buildingId: buildingId);
     final expenses = await getMasareef();
-    final rooms = await getRooms();
+    final rooms = await getRooms(buildingId: buildingId);
     final opCosts = await getOperationalCosts();
     final pendingTasks = await getPendingTasks();
 
