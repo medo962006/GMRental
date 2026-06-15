@@ -405,9 +405,16 @@ class SupabaseRepository {
     final opCosts = await getOperationalCosts();
     final pendingTasks = await getPendingTasks();
 
+    // Current month boundaries
+    final now = DateTime.now();
+    final monthStart = DateTime(now.year, now.month, 1);
+
+    // Expected: sum of monthlyRent for all occupied rooms
     final totalRentExpected =
         rooms.where((r) => r.isOccupied).fold(0.0, (sum, r) => sum + r.monthlyRent);
 
+    // Collected: sum of monthlyRent for paid tenants (payment_status = paid)
+    // These tenants have paid their current cycle rent
     final totalRentCollected =
         tenants.where((t) => t.isPaid).fold(0.0, (sum, t) {
           final room = rooms.firstWhere(
@@ -417,26 +424,28 @@ class SupabaseRepository {
           return sum + room.monthlyRent;
         });
 
-    final totalRentDue =
-        tenants.where((t) => t.isUnpaid).fold(0.0, (sum, t) {
-          final room = rooms.firstWhere(
-            (r) => r.id == t.roomId,
-            orElse: () => Room(id: 0, roomNumber: '', status: 'void', monthlyRent: 0),
-          );
-          return sum + room.monthlyRent;
-        });
-
-    final paidCount = tenants.where((t) => t.isPaid).length;
-    final unpaidCount = tenants.where((t) => t.isUnpaid).length;
-    final totalExpenses = expenses.fold(0.0, (sum, e) => sum + e.amount);
-    final totalOpCosts = opCosts.fold(0.0, (sum, c) => sum + c.amount);
-
-    final now = DateTime.now();
+    // Overdue: sum of monthlyRent for unpaid tenants whose dueDate has passed
     final overdueTenants = tenants.where((t) {
       if (t.isPaid) return false;
       if (t.dueDate == null) return false;
       return t.dueDate!.isBefore(now);
     }).toList();
+
+    final totalRentOverdue = overdueTenants.fold(0.0, (sum, t) {
+      final room = rooms.firstWhere(
+        (r) => r.id == t.roomId,
+        orElse: () => Room(id: 0, roomNumber: '', status: 'void', monthlyRent: 0),
+      );
+      return sum + room.monthlyRent;
+    });
+
+    // Unpaid (not yet overdue): expected - collected - overdue
+    final totalRentUnpaid = totalRentExpected - totalRentCollected - totalRentOverdue;
+
+    final paidCount = tenants.where((t) => t.isPaid).length;
+    final unpaidCount = tenants.where((t) => t.isUnpaid).length;
+    final totalExpenses = expenses.fold(0.0, (sum, e) => sum + e.amount);
+    final totalOpCosts = opCosts.fold(0.0, (sum, c) => sum + c.amount);
 
     return {
       'totalRooms': rooms.length,
@@ -448,7 +457,8 @@ class SupabaseRepository {
       'overdueTenants': overdueTenants,
       'totalRentExpected': totalRentExpected,
       'totalRentCollected': totalRentCollected,
-      'totalRentDue': totalRentDue,
+      'totalRentOverdue': totalRentOverdue,
+      'totalRentUnpaid': totalRentUnpaid.clamp(0, totalRentExpected),
       'totalExpenses': totalExpenses,
       'totalOpCosts': totalOpCosts,
       'totalCosts': totalExpenses + totalOpCosts,

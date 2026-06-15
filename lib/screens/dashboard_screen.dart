@@ -1,15 +1,12 @@
 // lib/screens/dashboard_screen.dart
-// Dashboard — building tabs, pie chart, room list, financial overview, overdue tenants.
+// Dashboard — building tabs, compact pie chart, financial overview, overdue tenants.
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../config/app_theme.dart';
 import '../models/tenant.dart';
 import '../models/room.dart';
-import '../models/masareef.dart';
 import '../providers/app_providers.dart';
-import '../services/pdf_report_service.dart';
 
 // ══════════════════════════════════════════════════════════════
 // BUILDING TAB NAMES
@@ -31,24 +28,24 @@ class DashboardScreen extends ConsumerWidget {
     final isDesktop = MediaQuery.of(context).size.width > 800;
 
     return Scaffold(
-    body: statsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Error: $e')),
-      data: (stats) {
-        final rooms = roomsAsync.when(
-          data: (r) => r,
-          loading: () => <Room>[],
-          error: (_, __) => <Room>[],
-        );
-        final tenants = tenantsAsync.when(
-          data: (t) => t,
-          loading: () => <Tenant>[],
-          error: (_, __) => <Tenant>[],
-        );
-        return _buildContent(context, ref, stats, isDesktop, rooms, tenants, buildingId);
-      },
-    ),
-  );
+      body: statsAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text('Error: $e')),
+        data: (stats) {
+          final rooms = roomsAsync.when(
+            data: (r) => r,
+            loading: () => <Room>[],
+            error: (_, __) => <Room>[],
+          );
+          final tenants = tenantsAsync.when(
+            data: (t) => t,
+            loading: () => <Tenant>[],
+            error: (_, __) => <Tenant>[],
+          );
+          return _buildContent(context, ref, stats, isDesktop, rooms, tenants, buildingId);
+        },
+      ),
+    );
   }
 
   Widget _buildContent(
@@ -61,6 +58,9 @@ class DashboardScreen extends ConsumerWidget {
     int buildingId,
   ) {
     final totalCollected = (stats['totalRentCollected'] as num?)?.toDouble() ?? 0;
+    final totalExpected = (stats['totalRentExpected'] as num?)?.toDouble() ?? 0;
+    final totalOverdue = (stats['totalRentOverdue'] as num?)?.toDouble() ?? 0;
+    final totalUnpaid = (stats['totalRentUnpaid'] as num?)?.toDouble() ?? 0;
     final totalExpenses = (stats['totalExpenses'] as num?)?.toDouble() ?? 0;
     final totalOpCosts = (stats['totalOpCosts'] as num?)?.toDouble() ?? 0;
     final netBalance = (stats['netBalance'] as num?)?.toDouble() ?? 0;
@@ -90,7 +90,7 @@ class DashboardScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 20),
 
-          // ── Room Status Pie Chart + Stat Cards ──
+          // ── Room Status Pie Chart + Stat Cards (compact) ──
           _RoomStatusSection(
             occupied: occupiedCount,
             voidRooms: voidCount,
@@ -103,19 +103,13 @@ class DashboardScreen extends ConsumerWidget {
           // ── Financial Banner ──
           _FinancialBanner(
             totalCollected: totalCollected,
+            totalExpected: totalExpected,
+            totalOverdue: totalOverdue,
+            totalUnpaid: totalUnpaid,
             totalExpenses: totalExpenses,
             totalOpCosts: totalOpCosts,
             netBalance: netBalance,
             isDesktop: isDesktop,
-          ),
-          const SizedBox(height: 24),
-
-          // ── All Rooms List ──
-          Text('All Rooms', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 12),
-          _RoomsListByFloor(
-            rooms: rooms,
-            tenants: tenants,
           ),
           const SizedBox(height: 24),
 
@@ -141,24 +135,10 @@ class DashboardScreen extends ConsumerWidget {
                 monthlyRent: room.monthlyRent,
               );
             }),
-            const SizedBox(height: 24),
           ],
-
-          // ── PDF Export ──
-          Center(
-            child: FilledButton.icon(
-              onPressed: () => _exportPdfReport(context, ref),
-              icon: const Icon(Icons.picture_as_pdf),
-              label: const Text('Export Financial Report'),
-            ),
-          ),
         ],
       ),
     );
-  }
-
-  void _exportPdfReport(BuildContext context, WidgetRef ref) {
-    // PDF export logic
   }
 }
 
@@ -216,7 +196,7 @@ class _BuildingTabs extends StatelessWidget {
 }
 
 // ══════════════════════════════════════════════════════════════
-// ROOM STATUS SECTION (pie chart + stat cards)
+// ROOM STATUS SECTION (compact pie chart + stat cards)
 // ══════════════════════════════════════════════════════════════
 class _RoomStatusSection extends StatelessWidget {
   final int occupied;
@@ -239,18 +219,20 @@ class _RoomStatusSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: AppDecorations.card(context),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          // Pie chart
+          // Compact pie chart — sized relative to card, max 120px
           SizedBox(
-            height: isDesktop ? 200 : 160,
+            height: isDesktop ? 120 : 100,
             child: Row(
               children: [
-                Expanded(
-                  flex: 3,
+                // Pie chart — fixed small size
+                SizedBox(
+                  width: isDesktop ? 120 : 100,
+                  height: isDesktop ? 120 : 100,
                   child: CustomPaint(
-                    size: Size(isDesktop ? 200 : 160, isDesktop ? 200 : 160),
+                    size: Size(isDesktop ? 120 : 100, isDesktop ? 120 : 100),
                     painter: _PieChartPainter(
                       occupied: occupied,
                       voidRooms: voidRooms,
@@ -260,16 +242,16 @@ class _RoomStatusSection extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 16),
+                // Legend
                 Expanded(
-                  flex: 2,
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _legendDot(AppColors.success, 'Occupied', occupied),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       _legendDot(Colors.grey, 'Void', voidRooms),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       _legendDot(AppColors.warning, 'Maintenance', maintenance),
                     ],
                   ),
@@ -277,9 +259,9 @@ class _RoomStatusSection extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),
           const Divider(height: 1),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           // Stat cards row
           Row(
             children: [
@@ -337,7 +319,7 @@ class _RoomStatusSection extends StatelessWidget {
 }
 
 // ══════════════════════════════════════════════════════════════
-// PIE CHART PAINTER
+// PIE CHART PAINTER (compact donut)
 // ══════════════════════════════════════════════════════════════
 class _PieChartPainter extends CustomPainter {
   final int occupied;
@@ -355,20 +337,19 @@ class _PieChartPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     if (total == 0) {
-      // Draw empty grey circle
       final paint = Paint()
         ..color = Colors.grey.shade200
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 24;
+        ..strokeWidth = 16;
       final center = Offset(size.width / 2, size.height / 2);
-      final radius = size.width / 2 - 16;
+      final radius = min(size.width, size.height) / 2 - 12;
       canvas.drawCircle(center, radius, paint);
       return;
     }
 
     final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2 - 16;
-    final strokeWidth = 28.0;
+    final radius = min(size.width, size.height) / 2 - 12;
+    final strokeWidth = 18.0;
     final rect = Rect.fromCircle(center: center, radius: radius);
 
     // Background ring
@@ -404,7 +385,7 @@ class _PieChartPainter extends CustomPainter {
       text: TextSpan(
         text: '$total',
         style: TextStyle(
-          fontSize: 28,
+          fontSize: 22,
           fontWeight: FontWeight.bold,
           color: AppColors.neutralDark,
         ),
@@ -414,20 +395,20 @@ class _PieChartPainter extends CustomPainter {
     totalPainter.layout();
     totalPainter.paint(
       canvas,
-      Offset(center.dx - totalPainter.width / 2, center.dy - totalPainter.height / 2 - 8),
+      Offset(center.dx - totalPainter.width / 2, center.dy - totalPainter.height / 2 - 6),
     );
 
     final labelPainter = TextPainter(
       text: const TextSpan(
         text: 'Rooms',
-        style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+        style: TextStyle(fontSize: 10, color: AppColors.textSecondary),
       ),
       textDirection: TextDirection.ltr,
     );
     labelPainter.layout();
     labelPainter.paint(
       canvas,
-      Offset(center.dx - labelPainter.width / 2, center.dy + 12),
+      Offset(center.dx - labelPainter.width / 2, center.dy + 10),
     );
   }
 
@@ -484,16 +465,16 @@ class _StatCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: color.withValues(alpha: 0.15)),
           ),
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
           child: Column(
             children: [
-              Icon(icon, color: color, size: 22),
-              const SizedBox(height: 6),
+              Icon(icon, color: color, size: 18),
+              const SizedBox(height: 4),
               Text(
                 '$count',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 18,
+                  fontSize: 16,
                   color: color,
                 ),
               ),
@@ -501,7 +482,7 @@ class _StatCard extends StatelessWidget {
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 10,
                   color: color.withValues(alpha: 0.8),
                   fontWeight: FontWeight.w500,
                 ),
@@ -523,10 +504,13 @@ class _StatCard extends StatelessWidget {
 }
 
 // ══════════════════════════════════════════════════════════════
-// FINANCIAL BANNER (gradient)
+// FINANCIAL BANNER — Collected / Expected / Overdue / Net
 // ══════════════════════════════════════════════════════════════
 class _FinancialBanner extends StatelessWidget {
   final double totalCollected;
+  final double totalExpected;
+  final double totalOverdue;
+  final double totalUnpaid;
   final double totalExpenses;
   final double totalOpCosts;
   final double netBalance;
@@ -534,6 +518,9 @@ class _FinancialBanner extends StatelessWidget {
 
   const _FinancialBanner({
     required this.totalCollected,
+    required this.totalExpected,
+    required this.totalOverdue,
+    required this.totalUnpaid,
     required this.totalExpenses,
     required this.totalOpCosts,
     required this.netBalance,
@@ -563,61 +550,108 @@ class _FinancialBanner extends StatelessWidget {
         ],
       ),
       padding: const EdgeInsets.all(20),
-      child: isDesktop
-          ? Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Title row
+          Row(
+            children: [
+              const Icon(Icons.account_balance_wallet, size: 18, color: Colors.white70),
+              const SizedBox(width: 8),
+              const Text('Financial Overview',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
+              const Spacer(),
+              // Collection rate badge
+              if (totalExpected > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '${(totalCollected / totalExpected * 100).toStringAsFixed(0)}% collected',
+                    style: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w600),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Main row: Collected vs Expected vs Overdue
+          if (isDesktop)
+            Row(
               children: [
-                _finStat('Total Collected', totalCollected, Icons.account_balance_wallet),
-                const SizedBox(width: 24),
-                _finStat('Masareef', totalExpenses, Icons.receipt_long),
-                const SizedBox(width: 24),
-                _finStat('Op. Costs', totalOpCosts, Icons.trending_up),
-                const SizedBox(width: 24),
-                _finStat('Net Balance', netBalance,
-                    netBalance >= 0 ? Icons.check_circle : Icons.warning),
+                _finCol('Collected', totalCollected, Icons.check_circle, Colors.green.shade200),
+                const SizedBox(width: 20),
+                _finCol('Expected', totalExpected, Icons.calendar_month, Colors.white),
+                const SizedBox(width: 20),
+                _finCol('Overdue', totalOverdue, Icons.warning_amber, Colors.red.shade200),
+                const SizedBox(width: 20),
+                _finCol('Net Balance', netBalance, netBalance >= 0 ? Icons.trending_up : Icons.trending_down,
+                    netBalance >= 0 ? Colors.green.shade200 : Colors.red.shade200),
               ],
             )
-          : Column(
+          else
+            Column(
               children: [
                 Row(
                   children: [
-                    Expanded(child: _finStat('Collected', totalCollected, Icons.account_balance_wallet)),
+                    Expanded(child: _finCol('Collected', totalCollected, Icons.check_circle, Colors.green.shade200)),
                     const SizedBox(width: 12),
-                    Expanded(child: _finStat('Masareef', totalExpenses, Icons.receipt_long)),
+                    Expanded(child: _finCol('Expected', totalExpected, Icons.calendar_month, Colors.white)),
                   ],
                 ),
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    Expanded(child: _finStat('Op. Costs', totalOpCosts, Icons.trending_up)),
+                    Expanded(child: _finCol('Overdue', totalOverdue, Icons.warning_amber, Colors.red.shade200)),
                     const SizedBox(width: 12),
-                    Expanded(child: _finStat('Net', netBalance,
-                        netBalance >= 0 ? Icons.check_circle : Icons.warning)),
+                    Expanded(child: _finCol('Net', netBalance, netBalance >= 0 ? Icons.trending_up : Icons.trending_down,
+                        netBalance >= 0 ? Colors.green.shade200 : Colors.red.shade200)),
                   ],
                 ),
               ],
             ),
+
+          // Sub-line: breakdown
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                _miniStat('Unpaid', totalUnpaid),
+                const SizedBox(width: 16),
+                _miniStat('Masareef', totalExpenses),
+                const SizedBox(width: 16),
+                _miniStat('Op. Costs', totalOpCosts),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _finStat(String label, double value, IconData icon) {
-    final isPositive = netBalance >= 0;
-    final valueColor = icon == Icons.check_circle || icon == Icons.warning
-        ? (isPositive ? Colors.green.shade200 : Colors.red.shade200)
-        : Colors.white;
+  Widget _finCol(String label, double value, IconData icon, Color valueColor) {
     return Expanded(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            Icon(icon, size: 16, color: Colors.white70),
-            const SizedBox(width: 6),
+            Icon(icon, size: 14, color: Colors.white70),
+            const SizedBox(width: 4),
             Text(label,
                 style: const TextStyle(fontSize: 11, color: Colors.white60)),
           ]),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Text('${value.toStringAsFixed(0)} LE',
               style: TextStyle(
-                fontSize: 20,
+                fontSize: 18,
                 fontWeight: FontWeight.bold,
                 color: valueColor,
               )),
@@ -625,242 +659,15 @@ class _FinancialBanner extends StatelessWidget {
       ),
     );
   }
-}
 
-// ══════════════════════════════════════════════════════════════
-// ROOMS LIST GROUPED BY FLOOR
-// ══════════════════════════════════════════════════════════════
-class _RoomsListByFloor extends StatelessWidget {
-  final List<Room> rooms;
-  final List<Tenant> tenants;
-
-  const _RoomsListByFloor({required this.rooms, required this.tenants});
-
-  @override
-  Widget build(BuildContext context) {
-    if (rooms.isEmpty) {
-      return Container(
-        decoration: AppDecorations.card(context),
-        padding: const EdgeInsets.all(24),
-        child: const Center(
-          child: Text('No rooms found for this building',
-              style: TextStyle(color: AppColors.textSecondary)),
-        ),
-      );
-    }
-
-    // Group by floor
-    final Map<String, List<Room>> grouped = {};
-    for (final room in rooms) {
-      grouped.putIfAbsent(room.floor, () => []).add(room);
-    }
-
-    // Sort floors by floorOrder
-    final sortedFloors = grouped.keys.toList()
-      ..sort((a, b) {
-        final orderA = _floorOrderKey(a);
-        final orderB = _floorOrderKey(b);
-        return orderA.compareTo(orderB);
-      });
-
-    // Build tenant lookup by roomId
-    final Map<int, Tenant> tenantByRoom = {};
-    for (final t in tenants) {
-      if (t.roomId != null) {
-        tenantByRoom[t.roomId!] = t;
-      }
-    }
-
+  Widget _miniStat(String label, double value) {
     return Column(
-      children: sortedFloors.map((floor) {
-        final floorRooms = grouped[floor]!;
-        floorRooms.sort((a, b) => a.roomNumber.compareTo(b.roomNumber));
-        final floorLabel = floorRooms.isNotEmpty ? floorRooms.first.floorLabel : floor;
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(top: 16, bottom: 8),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.secondary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      'Floor $floorLabel',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13,
-                        color: AppColors.secondary,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${floorRooms.length} rooms',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            ...floorRooms.map((room) {
-              final tenant = tenantByRoom[room.id];
-              return _RoomCard(room: room, tenant: tenant);
-            }),
-          ],
-        );
-      }).toList(),
-    );
-  }
-
-  int _floorOrderKey(String floor) {
-    switch (floor) {
-      case 'G': return 0;
-      case 'F': return 1;
-      case 'S': return 2;
-      case 'T': return 3;
-      default: return 9;
-    }
-  }
-}
-
-// ══════════════════════════════════════════════════════════════
-// ROOM CARD
-// ══════════════════════════════════════════════════════════════
-class _RoomCard extends StatelessWidget {
-  final Room room;
-  final Tenant? tenant;
-
-  const _RoomCard({required this.room, this.tenant});
-
-  @override
-  Widget build(BuildContext context) {
-    final statusColor = _statusColor(room.status);
-    final statusBg = statusColor.withValues(alpha: 0.1);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 6),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.borderMuted),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        child: Row(
-          children: [
-            // Room number
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: AppColors.canvas,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                room.displayRoomNumber,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 11,
-                  color: AppColors.neutralDark,
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            // Floor + status
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    room.floorLabel,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  if (tenant != null && room.isOccupied)
-                    Text(
-                      tenant!.name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                        color: AppColors.neutralDark,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            // Status badge
-            _statusBadge(room.status, statusBg, statusColor),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Color _statusColor(String status) {
-    switch (status) {
-      case 'occupied':
-        return AppColors.success;
-      case 'void':
-        return Colors.grey;
-      case 'maintenance':
-        return AppColors.warning;
-      default:
-        return AppColors.textSecondary;
-    }
-  }
-
-  Widget _statusBadge(String status, Color bg, Color fg) {
-    String label;
-    IconData icon;
-    switch (status) {
-      case 'occupied':
-        label = 'Occupied';
-        icon = Icons.check_circle;
-        break;
-      case 'void':
-        label = 'Void';
-        icon = Icons.crop_square;
-        break;
-      case 'maintenance':
-        label = 'Maint.';
-        icon = Icons.build;
-        break;
-      default:
-        label = status;
-        icon = Icons.help_outline;
-    }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: fg),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: fg,
-            ),
-          ),
-        ],
-      ),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 10, color: Colors.white54)),
+        Text('${value.toStringAsFixed(0)} LE',
+            style: const TextStyle(fontSize: 12, color: Colors.white70, fontWeight: FontWeight.w600)),
+      ],
     );
   }
 }
