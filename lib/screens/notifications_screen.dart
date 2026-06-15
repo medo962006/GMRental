@@ -4,15 +4,37 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/app_theme.dart';
 import '../models/admin_notification.dart';
+import '../services/auth_guard.dart';
 import '../providers/app_providers.dart';
 import '../repositories/supabase_repository.dart';
 
-class NotificationsScreen extends ConsumerWidget {
+class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
-  static const _currentAdminId = 'emad';
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<NotificationsScreen> createState() => _NotificationsScreenState();
+}
+
+class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
+  String _deviceCode = 'LOADING';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDeviceCode();
+  }
+
+  Future<void> _loadDeviceCode() async {
+    final code = await getDeviceCode(ref);
+    if (mounted) {
+      setState(() {
+        _deviceCode = code;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final notificationsAsync = ref.watch(adminNotificationsStreamProvider);
 
     return Scaffold(
@@ -37,7 +59,7 @@ class NotificationsScreen extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
             itemCount: notifications.length,
             itemBuilder: (_, i) =>
-                _NotificationCard(notification: notifications[i]),
+                _NotificationCard(notification: notifications[i], deviceCode: _deviceCode),
           );
         },
       ),
@@ -152,11 +174,12 @@ class NotificationsScreen extends ConsumerWidget {
 
 class _NotificationCard extends ConsumerWidget {
   final AdminNotification notification;
-  const _NotificationCard({required this.notification});
+  final String deviceCode;
+  const _NotificationCard({required this.notification, required this.deviceCode});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isRead = notification.isReadBy(NotificationsScreen._currentAdminId);
+    final isRead = notification.isReadBy(deviceCode);
     final color = notification.isRentDue
         ? AppColors.warning
         : notification.isInsuranceAlert
@@ -258,8 +281,7 @@ class _NotificationCard extends ConsumerWidget {
                     GestureDetector(
                       onTap: () => ref
                           .read(supabaseRepositoryProvider)
-                          .markNotificationRead(
-                              notification.id, NotificationsScreen._currentAdminId),
+                          .markNotificationRead(notification.id, deviceCode),
                       child: Container(
                         padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(

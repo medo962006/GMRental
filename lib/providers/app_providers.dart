@@ -95,8 +95,8 @@ final whatsAppLogsFutureProvider = FutureProvider<List<WhatsAppLog>>((ref) {
 
 // ── Dashboard ───────────────────────────────────────
 
-final dashboardStatsProvider = FutureProvider<Map<String, dynamic>>((ref) {
-  return ref.watch(supabaseRepositoryProvider).getDashboardStats();
+final dashboardStatsProvider = FutureProvider.family<Map<String, dynamic>, int>((ref, buildingId) {
+  return ref.watch(supabaseRepositoryProvider).getDashboardStats(buildingId: buildingId);
 });
 
 // ── Phase 3.7: Insurance Ledger ─────────────────────
