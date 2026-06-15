@@ -44,7 +44,9 @@ class NotificationService {
   }
 
   /// Create a notification in Supabase AND fire a local push.
-  /// Returns the created notification ID, or null on failure.
+  /// Deduplicates by title+category — if an identical notification already
+  /// exists (and is unread), skips creation to avoid spam on every app open.
+  /// Returns the created/existing notification ID, or null on failure.
   Future<String?> createRemoteNotification({
     required String title,
     required String body,
@@ -52,6 +54,25 @@ class NotificationService {
   }) async {
     try {
       final client = Supabase.instance.client;
+
+      // ── Dedup: check if an identical notification already exists ──
+      final existing = await client
+          .from('admin_notifications')
+          .select('id')
+          .eq('title', title)
+          .eq('category', category)
+          .eq('is_read', false)
+          .limit(1)
+          .maybeSingle();
+
+      if (existing != null) {
+        // Already exists and unread — skip, just fire local push
+        final id = existing['id'] as String;
+        await show(id: id.hashCode, title: title, body: body);
+        return id;
+      }
+
+      // ── Create new ──
       final data = await client.from('admin_notifications').insert({
         'title': title,
         'body': body,
@@ -93,7 +114,7 @@ class NotificationService {
         final daysUntil = l.dueDateForRemaining!.difference(DateTime.now()).inDays;
         if (daysUntil <= 0) {
           await createRemoteNotification(
-            title: 'Ta2meen Reminder',
+            title: 'Ta2meen Reminder: Insurance #${l.id}',
             body: 'Insurance payment of ${l.remainingBalance.toStringAsFixed(0)} LE is ${daysUntil == 0 ? "due today" : "${-daysUntil} days overdue"}.',
             category: 'insurance_alert',
           );
