@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/app_config.dart';
 import '../models/masareef.dart';
 import '../providers/app_providers.dart';
+import '../services/auth_guard.dart';
 
 
 class MasareefScreen extends ConsumerWidget {
@@ -475,6 +476,8 @@ class MasareefScreen extends ConsumerWidget {
       builder: (ctx) => _MasareefFormDialog(
         expense: expense,
         onSave: (Masareef savedExpense) async {
+          // Password gate for add/edit
+          if (!await showPasswordDialog(context, ref)) return;
           final repo = ref.read(supabaseRepositoryProvider);
           try {
             if (expense == null) {
@@ -528,6 +531,8 @@ class MasareefScreen extends ConsumerWidget {
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () async {
+              // Password gate for delete
+              if (!await showPasswordDialog(context, ref)) return;
               final repo = ref.read(supabaseRepositoryProvider);
               try {
                 await repo.deleteMasareef(expense.id);

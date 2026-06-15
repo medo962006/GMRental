@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/task_routine.dart';
 import '../models/room.dart';
 import '../providers/app_providers.dart';
+import '../services/auth_guard.dart';
 
 class TasksScreen extends ConsumerWidget {
   const TasksScreen({super.key});
@@ -259,6 +260,7 @@ class TasksScreen extends ConsumerWidget {
             FilledButton(
               onPressed: () async {
                 if (titleCtrl.text.trim().isEmpty) return;
+                if (!await showPasswordDialog(context, ref)) return;
                 await ref.read(supabaseRepositoryProvider).quickAddTask(
                   title: titleCtrl.text.trim(),
                   roomId: selectedRoomId,
