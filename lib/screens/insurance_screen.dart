@@ -1,32 +1,56 @@
 // lib/screens/insurance_screen.dart
-// Insurance Hub — full CRUD: add, collect payment, refund, delete.
+// Insurance Hub — per-building, auto-create, full CRUD, edit values.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/app_theme.dart';
 import '../models/insurance_ledger.dart';
 import '../models/tenant.dart';
+import '../models/room.dart';
 import '../providers/app_providers.dart';
 import '../repositories/supabase_repository.dart';
 
-class InsuranceScreen extends ConsumerWidget {
+class InsuranceScreen extends ConsumerStatefulWidget {
   const InsuranceScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<InsuranceScreen> createState() => _InsuranceScreenState();
+}
+
+class _InsuranceScreenState extends ConsumerState<InsuranceScreen> {
+  bool _autoCreated = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final buildingId = ref.watch(currentBuildingIdProvider);
     final ledgersAsync = ref.watch(insuranceLedgersStreamProvider);
-    final tenantsAsync = ref.watch(tenantsStreamProvider(1)); // all tenants
+    final tenantsAsync = ref.watch(tenantsStreamProvider(buildingId));
+    final roomsAsync = ref.watch(roomsStreamProvider(buildingId));
 
     return Scaffold(
       body: ledgersAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
-        data: (ledgers) {
+        data: (allLedgers) {
           return tenantsAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (_, __) => _buildContent(context, ref, ledgers, {}),
+            error: (_, __) => const Center(child: Text('Error loading tenants')),
             data: (tenants) {
-              final tenantMap = <String, Tenant>{for (final t in tenants) t.id: t};
-              return _buildContent(context, ref, ledgers, tenantMap);
+              return roomsAsync.when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (_, __) => const Center(child: Text('Error loading rooms')),
+                data: (rooms) {
+                  // Filter ledgers to this building's tenants
+                  final tenantIds = tenants.map((t) => t.id).toSet();
+                  final ledgers = allLedgers.where((l) => tenantIds.contains(l.tenantId)).toList();
+                  final tenantMap = <String, Tenant>{for (final t in tenants) t.id: t};
+                  final roomMap = <int, Room>{for (final r in rooms) r.id: r};
+
+                  // Auto-create insurance ledgers for tenants that don't have one
+                  _autoCreateIfNeeded(tenants, rooms, allLedgers);
+
+                  return _buildContent(context, ref, ledgers, tenantMap, roomMap, buildingId);
+                },
+              );
             },
           );
         },
@@ -39,8 +63,44 @@ class InsuranceScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildContent(BuildContext context, WidgetRef ref,
-      List<InsuranceLedger> ledgers, Map<String, Tenant> tenantMap) {
+  /// Auto-create insurance ledgers for active tenants that don't have one.
+  /// Amount = room rent, fully paid.
+  void _autoCreateIfNeeded(List<Tenant> tenants, List<Room> rooms, List<InsuranceLedger> allLedgers) {
+    if (_autoCreated) return;
+    _autoCreated = true;
+
+    final existingTenantIds = allLedgers.map((l) => l.tenantId).toSet();
+    final roomMap = <int, Room>{for (final r in rooms) r.id: r};
+    final repo = ref.read(supabaseRepositoryProvider);
+
+    for (final tenant in tenants) {
+      if (!tenant.isActive) continue;
+      if (existingTenantIds.contains(tenant.id)) continue;
+      if (tenant.roomId == null) continue;
+
+      final room = roomMap[tenant.roomId];
+      if (room == null) continue;
+
+      final rent = room.monthlyRent;
+      // Fire and forget — don't block the UI
+      repo.createInsuranceLedger(
+        tenantId: tenant.id,
+        totalAgreedAmount: rent,
+        amountPaidSoFar: rent,
+      ).catchError((_) {
+        // Silent — will retry on next build if needed
+      });
+    }
+  }
+
+  Widget _buildContent(
+    BuildContext context,
+    WidgetRef ref,
+    List<InsuranceLedger> ledgers,
+    Map<String, Tenant> tenantMap,
+    Map<int, Room> roomMap,
+    int buildingId,
+  ) {
     final totalAgreed = ledgers.fold(0.0, (s, l) => s + l.totalAgreedAmount);
     final totalPaid = ledgers.fold(0.0, (s, l) => s + l.amountPaidSoFar);
     final totalOwed = ledgers.fold(0.0, (s, l) => s + l.remainingBalance);
@@ -53,6 +113,20 @@ class InsuranceScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Building indicator
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppColors.secondary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              'Building: ${buildingId == 1 ? "Gawy" : "Baraka"}',
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.secondary),
+            ),
+          ),
+          const SizedBox(height: 16),
+
           // Financial Overview
           Container(
             decoration: AppDecorations.card(context),
@@ -110,8 +184,12 @@ class InsuranceScreen extends ConsumerWidget {
               return _InsuranceCard(
                 ledger: l,
                 tenant: tenant,
+                roomDisplay: tenant?.roomId != null
+                    ? (roomMap[tenant!.roomId]?.displayRoomNumber ?? '${tenant!.roomId}')
+                    : '—',
                 onCollect: () => _showCollectPayment(context, ref, l),
                 onRefund: () => _showRefund(context, ref, l),
+                onEdit: () => _showEdit(context, ref, l),
                 onDelete: () => _confirmDelete(context, ref, l),
               );
             }),
@@ -127,7 +205,11 @@ class InsuranceScreen extends ConsumerWidget {
               return _InsuranceCard(
                 ledger: l,
                 tenant: tenant,
+                roomDisplay: tenant?.roomId != null
+                    ? (roomMap[tenant!.roomId]?.displayRoomNumber ?? '${tenant!.roomId}')
+                    : '—',
                 isSettled: true,
+                onEdit: () => _showEdit(context, ref, l),
                 onDelete: () => _confirmDelete(context, ref, l),
               );
             }),
@@ -203,6 +285,72 @@ class InsuranceScreen extends ConsumerWidget {
               }
             },
             child: const Text('Collect'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Edit Insurance ────────────────────────────────
+  void _showEdit(BuildContext ctx, WidgetRef ref, InsuranceLedger ledger) {
+    final agreedCtrl = TextEditingController(text: ledger.totalAgreedAmount.toStringAsFixed(0));
+    final paidCtrl = TextEditingController(text: ledger.amountPaidSoFar.toStringAsFixed(0));
+
+    showDialog(
+      context: ctx,
+      builder: (dCtx) => AlertDialog(
+        title: const Text('Edit Insurance'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(
+            controller: agreedCtrl,
+            decoration: const InputDecoration(
+              labelText: 'Total Agreed Amount (LE)',
+              border: OutlineInputBorder(),
+            ),
+            keyboardType: TextInputType.number,
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: paidCtrl,
+            decoration: const InputDecoration(
+              labelText: 'Amount Paid So Far (LE)',
+              border: OutlineInputBorder(),
+            ),
+            keyboardType: TextInputType.number,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Remaining will auto-calculate: agreed − paid',
+            style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+          ),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dCtx), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () async {
+              final agreed = double.tryParse(agreedCtrl.text) ?? 0;
+              final paid = double.tryParse(paidCtrl.text) ?? 0;
+              if (agreed <= 0) return;
+              try {
+                await ref.read(supabaseRepositoryProvider).updateInsuranceLedger(
+                  id: ledger.id,
+                  totalAgreedAmount: agreed,
+                  amountPaidSoFar: paid,
+                );
+                if (dCtx.mounted) Navigator.pop(dCtx);
+                ref.invalidate(insuranceLedgersStreamProvider);
+                if (ctx.mounted) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    const SnackBar(content: Text('Insurance updated')),
+                  );
+                }
+              } catch (e) {
+                if (dCtx.mounted) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Error: $e')));
+                }
+              }
+            },
+            child: const Text('Save'),
           ),
         ],
       ),
@@ -306,16 +454,20 @@ class InsuranceScreen extends ConsumerWidget {
 class _InsuranceCard extends StatelessWidget {
   final InsuranceLedger ledger;
   final Tenant? tenant;
+  final String roomDisplay;
   final VoidCallback? onCollect;
   final VoidCallback? onRefund;
+  final VoidCallback? onEdit;
   final VoidCallback? onDelete;
   final bool isSettled;
 
   const _InsuranceCard({
     required this.ledger,
     this.tenant,
+    this.roomDisplay = '—',
     this.onCollect,
     this.onRefund,
+    this.onEdit,
     this.onDelete,
     this.isSettled = false,
   });
@@ -333,7 +485,6 @@ class _InsuranceCard extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () {
-          // Show detail / actions
           showModalBottomSheet(
             context: context,
             backgroundColor: Colors.transparent,
@@ -344,39 +495,67 @@ class _InsuranceCard extends StatelessWidget {
               ),
               padding: const EdgeInsets.all(20),
               child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Text(tenant?.name ?? 'Unknown', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                Text('Agreed: ${ledger.totalAgreedAmount.toStringAsFixed(0)} LE'),
-                Text('Paid: ${ledger.amountPaidSoFar.toStringAsFixed(0)} LE'),
-                Text('Remaining: ${ledger.remainingBalance.toStringAsFixed(0)} LE'),
-                Text('Status: ${ledger.status}'),
-                if (ledger.dueDateForRemaining != null)
-                  Text('Due: ${ledger.dueDateForRemaining!.day}/${ledger.dueDateForRemaining!.month}/${ledger.dueDateForRemaining!.year}'),
+                // Handle
+                Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
                 const SizedBox(height: 16),
-                if (!isSettled) ...[
-                  Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-                    if (onCollect != null)
+
+                Text(tenant?.name ?? 'Unknown',
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                Text('Room $roomDisplay',
+                    style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                const SizedBox(height: 12),
+
+                // Details
+                _detailRow('Agreed', '${ledger.totalAgreedAmount.toStringAsFixed(0)} LE'),
+                _detailRow('Paid', '${ledger.amountPaidSoFar.toStringAsFixed(0)} LE'),
+                _detailRow('Remaining', '${ledger.remainingBalance.toStringAsFixed(0)} LE'),
+                _detailRow('Status', ledger.status),
+                if (ledger.dueDateForRemaining != null)
+                  _detailRow('Due', _fmt(ledger.dueDateForRemaining)),
+
+                const SizedBox(height: 16),
+
+                // Action buttons
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    if (onEdit != null)
+                      ElevatedButton.icon(
+                        onPressed: () { Navigator.pop(ctx); onEdit!(); },
+                        icon: const Icon(Icons.edit, size: 18),
+                        label: const Text('Edit'),
+                      ),
+                    if (!isSettled && onCollect != null)
                       ElevatedButton.icon(
                         onPressed: () { Navigator.pop(ctx); onCollect!(); },
                         icon: const Icon(Icons.payments, size: 18),
                         label: const Text('Collect'),
                       ),
-                    if (onRefund != null)
+                    if (!isSettled && onRefund != null)
                       ElevatedButton.icon(
                         onPressed: () { Navigator.pop(ctx); onRefund!(); },
                         icon: const Icon(Icons.replay, size: 18),
                         label: const Text('Refund'),
-                        style: ElevatedButton.styleFrom(backgroundColor: AppColors.warning, foregroundColor: Colors.white),
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.warning, foregroundColor: Colors.white),
                       ),
-                  ]),
-                  const SizedBox(height: 8),
-                ],
-                if (onDelete != null)
-                  TextButton.icon(
-                    onPressed: () { Navigator.pop(ctx); onDelete!(); },
-                    icon: const Icon(Icons.delete, color: AppColors.danger),
-                    label: const Text('Delete Record', style: TextStyle(color: AppColors.danger)),
-                  ),
+                    if (onDelete != null)
+                      TextButton.icon(
+                        onPressed: () { Navigator.pop(ctx); onDelete!(); },
+                        icon: const Icon(Icons.delete, color: AppColors.danger),
+                        label: const Text('Delete', style: TextStyle(color: AppColors.danger)),
+                      ),
+                  ],
+                ),
               ]),
             ),
           );
@@ -401,9 +580,10 @@ class _InsuranceCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 10),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(tenant?.name ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                  if (tenant != null)
-                    Text('Room ${tenant!.roomId ?? '—'}', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                  Text(tenant?.name ?? 'Unknown',
+                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                  Text('Room $roomDisplay',
+                      style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                 ])),
                 if (isSettled)
                   AppBadge.paid(label: 'Settled')
@@ -452,6 +632,16 @@ class _InsuranceCard extends StatelessWidget {
     );
   }
 
+  Widget _detailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+        Text(label, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+        Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+      ]),
+    );
+  }
+
   String _fmt(DateTime? d) => d == null ? '—' : '${d.day}/${d.month}/${d.year}';
 }
 
@@ -476,7 +666,8 @@ class _InsuranceCreateFormState extends ConsumerState<_InsuranceCreateForm> {
 
   @override
   Widget build(BuildContext context) {
-    final tenantsAsync = ref.watch(tenantsFutureProvider(1));
+    final buildingId = ref.watch(currentBuildingIdProvider);
+    final tenantsAsync = ref.watch(tenantsFutureProvider(buildingId));
 
     return AlertDialog(
       title: const Text('Create Insurance Record'),
@@ -484,7 +675,6 @@ class _InsuranceCreateFormState extends ConsumerState<_InsuranceCreateForm> {
         key: _formKey,
         child: SingleChildScrollView(
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            // Tenant selector
             tenantsAsync.when(
               loading: () => const CircularProgressIndicator(),
               error: (_, __) => const Text('Error loading tenants'),

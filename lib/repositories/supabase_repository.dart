@@ -500,6 +500,23 @@ class SupabaseRepository {
     return InsuranceLedger.fromJson(data);
   }
 
+  /// Update insurance ledger amounts (for manual edits).
+  Future<InsuranceLedger> updateInsuranceLedger({
+    required String id,
+    required double totalAgreedAmount,
+    required double amountPaidSoFar,
+  }) async {
+    final remaining = totalAgreedAmount - amountPaidSoFar;
+    final status = amountPaidSoFar >= totalAgreedAmount ? 'fully_paid' : 'partial';
+    final data = await _client.from('insurance_ledger').update({
+      'total_agreed_amount': totalAgreedAmount,
+      'amount_paid_so_far': amountPaidSoFar,
+      'remaining_balance': remaining.clamp(0, totalAgreedAmount),
+      'status': status,
+    }).eq('id', id).select().single();
+    return InsuranceLedger.fromJson(data);
+  }
+
   /// Collect partial insurance payment. Atomically updates the ledger
   /// and inserts a payment_received transaction.
   Future<InsuranceLedger> collectInsurancePayment({
