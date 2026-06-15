@@ -46,13 +46,49 @@ class NotificationsScreen extends ConsumerWidget {
         icon: const Icon(Icons.add),
         label: const Text('New Alert'),
       ),
+      appBar: AppBar(
+        title: const Text('Notifications'),
+        actions: [
+          TextButton.icon(
+            onPressed: () => _createTestNotification(context, ref),
+            icon: const Icon(Icons.bug_report, size: 18),
+            label: const Text('Test'),
+          ),
+        ],
+      ),
     );
+  }
+
+  void _createTestNotification(BuildContext ctx, WidgetRef ref) async {
+    try {
+      await ref.read(supabaseRepositoryProvider).createNotification(
+        title: '🔔 Test Notification',
+        body: 'This is a test alert created at ${DateTime.now().toString().substring(11, 19)}. If you see this, notifications are working!',
+        category: 'rent_due',
+      );
+      ref.invalidate(adminNotificationsStreamProvider);
+      if (ctx.mounted) {
+        ScaffoldMessenger.of(ctx).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Test notification created!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (ctx.mounted) {
+        ScaffoldMessenger.of(ctx).showSnackBar(
+          SnackBar(content: Text('❌ Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   void _showCreateForm(BuildContext ctx, WidgetRef ref) {
     final titleCtrl = TextEditingController();
     final bodyCtrl = TextEditingController();
-    String category = 'general';
+    String category = 'rent_due';
 
     showDialog(
       context: ctx,
@@ -76,7 +112,6 @@ class NotificationsScreen extends ConsumerWidget {
                 value: category,
                 decoration: const InputDecoration(labelText: 'Category', border: OutlineInputBorder()),
                 items: const [
-                  DropdownMenuItem(value: 'general', child: Text('General')),
                   DropdownMenuItem(value: 'rent_due', child: Text('Rent Due')),
                   DropdownMenuItem(value: 'insurance_alert', child: Text('Insurance Alert')),
                   DropdownMenuItem(value: 'task_pending', child: Text('Task Pending')),
@@ -128,14 +163,22 @@ class _NotificationCard extends ConsumerWidget {
             ? AppColors.accent
             : notification.isTaskPending
                 ? AppColors.secondary
-                : AppColors.infoText;
+                : notification.category == 'payment_received'
+                    ? AppColors.success
+                    : notification.category == 'tenant_checkout'
+                        ? AppColors.danger
+                        : AppColors.infoText;
     final icon = notification.isRentDue
         ? Icons.payments
         : notification.isInsuranceAlert
             ? Icons.shield
             : notification.isTaskPending
                 ? Icons.checklist
-                : Icons.notifications;
+                : notification.category == 'payment_received'
+                    ? Icons.account_balance_wallet
+                    : notification.category == 'tenant_checkout'
+                        ? Icons.exit_to_app
+                        : Icons.notifications;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
