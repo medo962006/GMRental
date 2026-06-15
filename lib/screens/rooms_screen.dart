@@ -48,6 +48,11 @@ class _RoomContentState extends ConsumerState<_RoomContent> {
   RoomFilter _filter = RoomFilter.all;
   String _search = '';
 
+  /// Shows password dialog and returns true if authenticated.
+  Future<bool> _requireAuth() async {
+    return showPasswordDialog(context, ref);
+  }
+
   @override
   Widget build(BuildContext context) {
     final roomsAsync = ref.watch(roomsStreamProvider(widget.buildingId));
@@ -280,7 +285,9 @@ class _RoomContentState extends ConsumerState<_RoomContent> {
     return AppBadge.status(label: 'Void', bg: AppColors.canvas, fg: AppColors.textSecondary);
   }
 
-  void _markPaid(String tenantId) {
+  void _markPaid(String tenantId) async {
+    final authed = await _requireAuth();
+    if (!authed) return;
     ref.read(supabaseRepositoryProvider).markTenantPaid(tenantId);
   }
 
@@ -425,7 +432,18 @@ class _RoomActionsSheet extends ConsumerStatefulWidget {
 class _RoomActionsSheetState extends ConsumerState<_RoomActionsSheet> {
   bool _loading = false;
 
-  static const _deviceCode = 'ADMIN001';
+  String _deviceCode = 'LOADING';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDeviceCode();
+  }
+
+  Future<void> _loadDeviceCode() async {
+    final code = await getDeviceCode(ref);
+    if (mounted) setState(() => _deviceCode = code);
+  }
 
   /// Shows password dialog and returns true if authenticated.
   Future<bool> _requireAuth() async {
