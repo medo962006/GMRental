@@ -482,6 +482,7 @@ class MasareefScreen extends ConsumerWidget {
             } else {
               await repo.updateMasareef(savedExpense);
             }
+            ref.invalidate(masareefStreamProvider);
             if (ctx.mounted) {
               Navigator.of(ctx).pop();
               ScaffoldMessenger.of(context).showSnackBar(
@@ -530,6 +531,7 @@ class MasareefScreen extends ConsumerWidget {
               final repo = ref.read(supabaseRepositoryProvider);
               try {
                 await repo.deleteMasareef(expense.id);
+                ref.invalidate(masareefStreamProvider);
                 if (ctx.mounted) Navigator.of(ctx).pop();
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(

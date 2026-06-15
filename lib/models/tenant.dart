@@ -24,6 +24,8 @@ class Tenant {
   final DateTime? leaseStartDate;
   @JsonKey(name: 'created_at')
   final DateTime createdAt;
+  @JsonKey(name: 'building_id')
+  final int buildingId;
 
   const Tenant({
     required this.id,
@@ -38,6 +40,7 @@ class Tenant {
     this.dueDate,
     this.leaseStartDate,
     required this.createdAt,
+    this.buildingId = 1,
   });
 
   factory Tenant.fromJson(Map<String, dynamic> json) => _$TenantFromJson(json);
@@ -56,6 +59,7 @@ class Tenant {
     DateTime? dueDate,
     DateTime? leaseStartDate,
     DateTime? createdAt,
+    int? buildingId,
   }) {
     return Tenant(
       id: id ?? this.id,
@@ -70,6 +74,7 @@ class Tenant {
       dueDate: dueDate ?? this.dueDate,
       leaseStartDate: leaseStartDate ?? this.leaseStartDate,
       createdAt: createdAt ?? this.createdAt,
+      buildingId: buildingId ?? this.buildingId,
     );
   }
 

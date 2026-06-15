@@ -5,7 +5,7 @@ import '../models/tenant.dart';
 
 class Building2Data {
   static const buildingId = 2;
-  static const buildingName = 'المبنى الثاني';
+  static const buildingName = 'Baraka';
 
   static List<Room> get rooms {
     final list = <Room>[];

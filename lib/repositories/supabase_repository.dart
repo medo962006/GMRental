@@ -9,6 +9,8 @@ import '../models/whatsapp_log.dart';
 import '../models/insurance_ledger.dart';
 import '../models/insurance_transaction.dart';
 import '../models/admin_notification.dart';
+import '../models/changelog_entry.dart';
+import '../models/device_code.dart';
 
 class SupabaseRepository {
   final SupabaseClient _client = Supabase.instance.client;
@@ -17,17 +19,29 @@ class SupabaseRepository {
   // ROOMS
   // ════════════════════════════════════════════════════════
 
-  Stream<List<Room>> watchRooms() {
-    return _client
+  Stream<List<Room>> watchRooms({int? buildingId}) {
+    final query = _client
         .from('rooms')
-        .stream(primaryKey: ['id'])
+        .stream(primaryKey: ['id']);
+    // Note: we filter client-side since Supabase stream doesn't support .eq() well
+    return query
         .order('room_number')
-        .map((data) => data.map((e) => Room.fromJson(e)).toList());
+        .map((data) {
+          final rooms = data.map((e) => Room.fromJson(e)).toList();
+          if (buildingId != null) {
+            return rooms.where((r) => r.buildingId == buildingId).toList();
+          }
+          return rooms;
+        });
   }
 
-  Future<List<Room>> getRooms() async {
+  Future<List<Room>> getRooms({int? buildingId}) async {
     final data = await _client.from('rooms').select().order('room_number');
-    return (data as List).map((e) => Room.fromJson(e)).toList();
+    final rooms = (data as List).map((e) => Room.fromJson(e)).toList();
+    if (buildingId != null) {
+      return rooms.where((r) => r.buildingId == buildingId).toList();
+    }
+    return rooms;
   }
 
   Future<Room> addRoom(Room room) async {
@@ -35,6 +49,7 @@ class SupabaseRepository {
       'room_number': room.roomNumber,
       'status': room.status,
       'monthly_rent': room.monthlyRent,
+      'building_id': room.buildingId,
     }).select().single();
     return Room.fromJson(data);
   }
@@ -44,6 +59,7 @@ class SupabaseRepository {
       'room_number': room.roomNumber,
       'status': room.status,
       'monthly_rent': room.monthlyRent,
+      'building_id': room.buildingId,
     }).eq('id', room.id).select().single();
     return Room.fromJson(data);
   }
@@ -56,27 +72,45 @@ class SupabaseRepository {
   // TENANTS  (with Phase 2 auto-trigger on archive)
   // ════════════════════════════════════════════════════════
 
-  Stream<List<Tenant>> watchTenants() {
+  Stream<List<Tenant>> watchTenants({int? buildingId}) {
     return _client
         .from('tenants')
         .stream(primaryKey: ['id'])
         .order('created_at', ascending: false)
-        .map((data) => data.map((e) => Tenant.fromJson(e)).toList());
+        .map((data) {
+          final tenants = data.map((e) => Tenant.fromJson(e)).toList();
+          if (buildingId != null) {
+            return tenants.where((t) => t.buildingId == buildingId).toList();
+          }
+          return tenants;
+        });
   }
 
-  Future<List<Tenant>> getTenants() async {
+  Future<List<Tenant>> getTenants({int? buildingId}) async {
     final data = await _client.from('tenants').select().order('created_at', ascending: false);
-    return (data as List).map((e) => Tenant.fromJson(e)).toList();
+    final tenants = (data as List).map((e) => Tenant.fromJson(e)).toList();
+    if (buildingId != null) {
+      return tenants.where((t) => t.buildingId == buildingId).toList();
+    }
+    return tenants;
   }
 
-  Future<List<Tenant>> getActiveTenants() async {
+  Future<List<Tenant>> getActiveTenants({int? buildingId}) async {
     final data = await _client.from('tenants').select().eq('status', 'active').order('created_at', ascending: false);
-    return (data as List).map((e) => Tenant.fromJson(e)).toList();
+    final tenants = (data as List).map((e) => Tenant.fromJson(e)).toList();
+    if (buildingId != null) {
+      return tenants.where((t) => t.buildingId == buildingId).toList();
+    }
+    return tenants;
   }
 
-  Future<List<Tenant>> getUnpaidTenants() async {
+  Future<List<Tenant>> getUnpaidTenants({int? buildingId}) async {
     final data = await _client.from('tenants').select().eq('status', 'active').eq('payment_status', 'unpaid').order('due_date');
-    return (data as List).map((e) => Tenant.fromJson(e)).toList();
+    final tenants = (data as List).map((e) => Tenant.fromJson(e)).toList();
+    if (buildingId != null) {
+      return tenants.where((t) => t.buildingId == buildingId).toList();
+    }
+    return tenants;
   }
 
   Future<Tenant> addTenant(Tenant tenant) async {
@@ -85,6 +119,7 @@ class SupabaseRepository {
       'phone': tenant.phone,
       'gender': tenant.gender,
       'room_id': tenant.roomId,
+      'building_id': tenant.buildingId,
       'status': tenant.status,
       'insurance_amount': tenant.insuranceAmount,
       'insurance_returned': tenant.insuranceReturned,
@@ -92,6 +127,12 @@ class SupabaseRepository {
       'due_date': tenant.dueDate?.toIso8601String().split('T').first,
       'lease_start_date': tenant.leaseStartDate?.toIso8601String().split('T').first,
     }).select().single();
+
+    // Auto-set room to occupied when tenant is assigned
+    if (tenant.roomId != null && tenant.status == 'active') {
+      await _client.from('rooms').update({'status': 'occupied'}).eq('id', tenant.roomId!);
+    }
+
     return Tenant.fromJson(data);
   }
 
@@ -103,6 +144,7 @@ class SupabaseRepository {
       'phone': tenant.phone,
       'gender': tenant.gender,
       'room_id': tenant.roomId,
+      'building_id': tenant.buildingId,
       'status': tenant.status,
       'insurance_amount': tenant.insuranceAmount,
       'insurance_returned': tenant.insuranceReturned,
@@ -141,7 +183,19 @@ class SupabaseRepository {
   }
 
   Future<void> deleteTenant(String id) async {
+    // Get tenant info before deletion to check room status
+    final tenantData = await _client.from('tenants').select('room_id').eq('id', id).maybeSingle();
+    final roomId = tenantData?['room_id'] as int?;
+
     await _client.from('tenants').delete().eq('id', id);
+
+    // If tenant had a room, check if any other active tenants remain
+    if (roomId != null) {
+      final remaining = await _client.from('tenants').select('id').eq('room_id', roomId).eq('status', 'active').limit(1);
+      if (remaining.isEmpty) {
+        await _client.from('rooms').update({'status': 'void'}).eq('id', roomId);
+      }
+    }
   }
 
   Future<void> markTenantPaid(String id) async {
@@ -582,5 +636,89 @@ class SupabaseRepository {
 
   Future<void> deleteNotification(String id) async {
     await _client.from('admin_notifications').delete().eq('id', id);
+  }
+
+  // ════════════════════════════════════════════════════════
+  // CHANGELOG
+  // ════════════════════════════════════════════════════════
+
+  Stream<List<ChangelogEntry>> watchChangelog({int? buildingId}) {
+    var query = _client
+        .from('changelog')
+        .stream(primaryKey: ['id'])
+        .order('created_at', ascending: false);
+    return query.map((data) {
+      final entries = data.map((e) => ChangelogEntry.fromJson(e)).toList();
+      if (buildingId != null) {
+        return entries.where((e) => e.buildingId == buildingId).toList();
+      }
+      return entries;
+    });
+  }
+
+  Future<List<ChangelogEntry>> getChangelog({int? buildingId, int limit = 100}) async {
+    final data = await _client
+        .from('changelog')
+        .select()
+        .order('created_at', ascending: false)
+        .limit(limit);
+    final entries = (data as List).map((e) => ChangelogEntry.fromJson(e)).toList();
+    if (buildingId != null) {
+      return entries.where((e) => e.buildingId == buildingId).toList();
+    }
+    return entries;
+  }
+
+  Future<void> logChange({
+    required String deviceCode,
+    String? adminName,
+    required String action,
+    required String entityType,
+    String? entityId,
+    String? entityName,
+    Map<String, dynamic>? oldValue,
+    Map<String, dynamic>? newValue,
+    String? details,
+    int buildingId = 1,
+  }) async {
+    await _client.from('changelog').insert({
+      'device_code': deviceCode,
+      'admin_name': adminName,
+      'action': action,
+      'entity_type': entityType,
+      'entity_id': entityId,
+      'entity_name': entityName,
+      'old_value': oldValue,
+      'new_value': newValue,
+      'details': details,
+      'building_id': buildingId,
+    });
+  }
+
+  Future<void> registerDevice(String code, {String? deviceName}) async {
+    await _client.from('device_codes').upsert({
+      'code': code,
+      'device_name': deviceName,
+      'last_seen_at': DateTime.now().toIso8601String(),
+    });
+  }
+
+  Future<DeviceCode?> getDevice(String code) async {
+    final data = await _client
+        .from('device_codes')
+        .select()
+        .eq('code', code)
+        .eq('is_active', true)
+        .maybeSingle();
+    if (data == null) return null;
+    return DeviceCode.fromJson(data);
+  }
+
+  Future<List<DeviceCode>> getAllDevices() async {
+    final data = await _client
+        .from('device_codes')
+        .select()
+        .order('created_at', ascending: false);
+    return (data as List).map((e) => DeviceCode.fromJson(e)).toList();
   }
 }

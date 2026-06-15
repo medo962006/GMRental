@@ -59,6 +59,58 @@ class ResponsiveShell extends ConsumerWidget {
       error: (_, __) => 0,
     );
 
+    // ── Building Switcher (shared widget) ──
+    Widget _buildBuildingSwitcher({required bool isDesktop}) {
+      return Consumer(builder: (context, ref, _) {
+        final bId = ref.watch(currentBuildingIdProvider);
+        final bg = isDesktop ? Colors.white12 : AppColors.canvas;
+        final selectedBg = isDesktop ? Colors.white24 : AppColors.primary;
+        final selectedFg = isDesktop ? Colors.white : Colors.white;
+        final unselectedFg = isDesktop ? Colors.white54 : AppColors.textSecondary;
+        final borderColor = isDesktop ? Colors.white12 : AppColors.borderMuted;
+
+        return Container(
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: borderColor),
+          ),
+          child: Row(children: [
+            Expanded(
+              child: GestureDetector(
+                onTap: () => ref.read(currentBuildingIdProvider.notifier).state = 1,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                    color: bId == 1 ? selectedBg : Colors.transparent,
+                    borderRadius: const BorderRadius.horizontal(left: Radius.circular(9)),
+                  ),
+                  child: Text('Gawy',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: bId == 1 ? selectedFg : unselectedFg)),
+                ),
+              ),
+            ),
+            Expanded(
+              child: GestureDetector(
+                onTap: () => ref.read(currentBuildingIdProvider.notifier).state = 2,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                    color: bId == 2 ? selectedBg : Colors.transparent,
+                    borderRadius: const BorderRadius.horizontal(right: Radius.circular(9)),
+                  ),
+                  child: Text('Baraka',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: bId == 2 ? selectedFg : unselectedFg)),
+                ),
+              ),
+            ),
+          ]),
+        );
+      });
+    }
+
     // ── Drawer content (shared between desktop sidebar and mobile drawer) ──
     Widget buildNavItem(int i) {
       final isSelected = selectedIndex == i;
@@ -168,6 +220,11 @@ class ResponsiveShell extends ConsumerWidget {
                 ]),
               ),
               const SizedBox(height: 24),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: _buildBuildingSwitcher(isDesktop: true),
+              ),
+              const SizedBox(height: 16),
               const Divider(color: Colors.white12, height: 1, indent: 16, endIndent: 16),
               const SizedBox(height: 8),
               Expanded(
@@ -196,6 +253,16 @@ class ResponsiveShell extends ConsumerWidget {
         ),
         title: Text(navLabels[selectedIndex]),
         actions: [
+          // Building switcher in AppBar
+          Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: Center(
+              child: SizedBox(
+                width: 120,
+                child: _buildBuildingSwitcher(isDesktop: false),
+              ),
+            ),
+          ),
           if (unreadCount > 0)
             Padding(
               padding: const EdgeInsets.only(right: 12),
@@ -244,7 +311,7 @@ class ResponsiveShell extends ConsumerWidget {
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primary)),
                   Consumer(builder: (context, ref, _) {
                     final bId = ref.watch(currentBuildingIdProvider);
-                    return Text(bId == 1 ? 'Main Building' : 'المبنى الثاني',
+                    return Text(bId == 1 ? 'Main Building' : 'Baraka',
                         style: const TextStyle(fontSize: 11, color: AppColors.textSecondary));
                   }),
                 ]),
@@ -253,51 +320,10 @@ class ResponsiveShell extends ConsumerWidget {
             const Divider(height: 1),
 
             // ── Building Switcher ──
-            Consumer(builder: (context, ref, _) {
-              final bId = ref.watch(currentBuildingIdProvider);
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.canvas,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.borderMuted),
-                  ),
-                  child: Row(children: [
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => ref.read(currentBuildingIdProvider.notifier).state = 1,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          decoration: BoxDecoration(
-                            color: bId == 1 ? AppColors.primary : Colors.transparent,
-                            borderRadius: BorderRadius.circular(11),
-                          ),
-                          child: Text('Main Building',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: bId == 1 ? Colors.white : AppColors.textSecondary)),
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => ref.read(currentBuildingIdProvider.notifier).state = 2,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          decoration: BoxDecoration(
-                            color: bId == 2 ? AppColors.primary : Colors.transparent,
-                            borderRadius: BorderRadius.circular(11),
-                          ),
-                          child: Text('المبنى الثاني',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: bId == 2 ? Colors.white : AppColors.textSecondary)),
-                        ),
-                      ),
-                    ),
-                  ]),
-                ),
-              );
-            }),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: _buildBuildingSwitcher(isDesktop: false),
+            ),
             const Divider(height: 1),
             // Nav items
             Expanded(

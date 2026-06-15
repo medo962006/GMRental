@@ -11,7 +11,7 @@ class TasksScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tasksAsync = ref.watch(taskRoutinesStreamProvider);
-    final roomsAsync = ref.watch(roomsStreamProvider);
+    final roomsAsync = ref.watch(roomsStreamProvider(1));
     final isDesktop = MediaQuery.of(context).size.width > 900;
 
     return Scaffold(
