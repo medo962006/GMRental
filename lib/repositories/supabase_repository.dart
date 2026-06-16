@@ -234,6 +234,21 @@ class SupabaseRepository {
     }).eq('id', id);
   }
 
+  Future<void> markTenantUnpaid(String id) async {
+    // Get current tenant to find due_date
+    final data = await _client.from('tenants').select('due_date').eq('id', id).single();
+    final dueDateStr = data['due_date'] as String?;
+
+    // Set due_date to today so it's immediately overdue
+    final today = DateTime.now();
+    final newDue = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+
+    await _client.from('tenants').update({
+      'payment_status': 'unpaid',
+      'due_date': newDue,
+    }).eq('id', id);
+  }
+
   // ════════════════════════════════════════════════════════
   // MASAREEF (EXPENSES)
   // ════════════════════════════════════════════════════════
