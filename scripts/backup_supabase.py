@@ -1,132 +1,128 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Supabase Daily Backup Script
-Fetches all rows from all tables and saves as JSON.
-Designed to run as a daily cron job on a laptop via Windows Task Scheduler.
-Backups are saved locally only — NOT committed to any git repo.
+Supabase -> CSV backup script.
+Backs up all tables to timestamped CSV files in scripts/backups/.
+Also writes a combined JSON file for full restore.
+
+Usage (from project root):
+  python scripts/backup_supabase.py
 """
 
+import csv
+import io
 import json
 import os
 import sys
-import io
-import requests
-from datetime import datetime, timezone
+import urllib.request
+import urllib.error
+from datetime import datetime
 
-# Force UTF-8 output even when cmd.exe uses CP1252
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+# Fix Windows console encoding
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-# ── Configuration ──────────────────────────────────────
+# ── Supabase config (matches lib/config/app_config.dart) ──────────
 SUPABASE_URL = "https://sfkymoimtjgafvbclnqy.supabase.co"
-SUPABASE_SERVICE_KEY = "sb_publishable_L1gku764fsbQWnoeMPH1qg_C2cJuISC"
+SUPABASE_KEY = "sb_publishable_L1gku764fsbQWnoeMPH1qg_C2cJuISC"
 
+# All tables to back up
 TABLES = [
     "rooms",
     "tenants",
     "masareef",
     "task_routines",
     "operational_costs",
-    "whatsapp_logs",
     "insurance_ledger",
     "insurance_transactions",
     "admin_notifications",
     "changelog",
     "device_codes",
+    "whatsapp_logs",
 ]
 
-BACKUP_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "backups")
-HEADERS = {
-    "apikey": SUPABASE_SERVICE_KEY,
-    "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
-    "Content-Type": "application/json",
-    "Prefer": "return=representation",
-}
-
-# ── Helpers ─────────────────────────────────────────────
-
-def fetch_table(table: str) -> list:
-    """Fetch ALL rows from a Supabase table using the REST API."""
-    url = f"{SUPABASE_URL}/rest/v1/{table}"
-    params: dict = {"select": "*", "order": "id"}
-
-    all_rows = []
-    offset = 0
-    batch_size = 1000
-
-    while True:
-        params["offset"] = str(offset)
-        params["limit"] = str(batch_size)
-        resp = requests.get(url, headers=HEADERS, params=params, timeout=30)
-        resp.raise_for_status()
-        rows = resp.json()
-        if not rows:
-            break
-        all_rows.extend(rows)
-        if len(rows) < batch_size:
-            break
-        offset += batch_size
-
-    return all_rows
+# Output directory
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_DIR = os.path.dirname(SCRIPT_DIR)
+BACKUP_DIR = os.path.join(PROJECT_DIR, "scripts", "backups")
 
 
-def save_backup(data: dict, backup_dir: str) -> str:
-    """Save backup data as a timestamped JSON file."""
-    os.makedirs(backup_dir, exist_ok=True)
-    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H-%M-%S")
-    filename = f"backup_{ts}.json"
-    filepath = os.path.join(backup_dir, filename)
+def fetch_table(table):
+    """Fetch all rows from a Supabase table via REST API."""
+    url = f"{SUPABASE_URL}/rest/v1/{table}?select=*&order=id"
+    req = urllib.request.Request(url, headers={
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            return json.loads(resp.read())
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return []
+        raise
 
-    with open(filepath, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False, default=str)
 
-    return filepath
+def rows_to_csv(rows):
+    """Convert a list of dicts to a CSV string."""
+    if not rows:
+        return ""
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=list(rows[0].keys()))
+    writer.writeheader()
+    writer.writerows(rows)
+    return output.getvalue()
 
 
 def main():
-    print(f"[Backup] Supabase — {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"  URL: {SUPABASE_URL}")
-    print(f"  Tables: {len(TABLES)}")
-    print()
-
-    backup = {
-        "metadata": {
-            "supabase_url": SUPABASE_URL,
-            "backup_at": datetime.now(timezone.utc).isoformat(),
-            "tables": TABLES,
-        },
-        "data": {},
-    }
-
+    os.makedirs(BACKUP_DIR, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     total_rows = 0
+    total_files = 0
     errors = []
+    all_data = {}
 
     for table in TABLES:
         try:
             rows = fetch_table(table)
-            backup["data"][table] = rows
-            count = len(rows)
-            total_rows += count
-            print(f"  [OK] {table}: {count} rows")
         except Exception as e:
-            backup["data"][table] = {"error": str(e)}
-            errors.append(table)
-            print(f"  [FAIL] {table}: {e}")
+            errors.append(f"  [ERR] {table}: {e}")
+            continue
 
-    print()
+        if not rows:
+            print(f"  [--] {table}: empty (skipped)")
+            continue
 
-    filepath = save_backup(backup, BACKUP_DIR)
-    size_kb = os.path.getsize(filepath) / 1024
-    print(f"  Saved: {filepath} ({size_kb:.0f} KB)")
-    print(f"  Total: {total_rows} rows across {len(TABLES) - len(errors)} tables")
+        # Save individual CSV
+        csv_content = rows_to_csv(rows)
+        filename = f"{timestamp}_{table}.csv"
+        filepath = os.path.join(BACKUP_DIR, filename)
+
+        with open(filepath, "w", encoding="utf-8-sig", newline="") as f:
+            f.write(csv_content)
+
+        total_rows += len(rows)
+        total_files += 1
+        all_data[table] = rows
+        print(f"  [OK] {table}: {len(rows)} rows -> {filename}")
+
+    # ── Combined JSON ──────────────────────────────────────────────
+    if all_data:
+        combined_file = os.path.join(BACKUP_DIR, f"{timestamp}_all_tables.json")
+        with open(combined_file, "w", encoding="utf-8") as f:
+            json.dump(all_data, f, ensure_ascii=False, indent=2, default=str)
+        print(f"  [OK] Combined JSON: {combined_file}")
+
+    # ── Summary ────────────────────────────────────────────────────
+    print(f"\n{'='*50}")
+    print(f"Backup complete: {total_files} tables, {total_rows} total rows")
+    print(f"Directory: {BACKUP_DIR}")
+    print(f"Timestamp: {timestamp}")
 
     if errors:
-        print(f"  Errors: {', '.join(errors)}")
-        sys.exit(1)
-
-    print(f"  Backup complete!")
-    return filepath
+        print(f"\nErrors ({len(errors)}):")
+        for e in errors:
+            print(e)
 
 
 if __name__ == "__main__":
