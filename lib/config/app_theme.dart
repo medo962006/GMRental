@@ -32,6 +32,10 @@ class AppColors {
   static const Color warningBg = Color(0x1FF59E0B);
   static const Color warningText = Color(0xFFB45309);
 
+  static const Color reserved = Color(0xFF8B5CF6);
+  static const Color reservedBg = Color(0x1F8B5CF6);
+  static const Color reservedText = Color(0xFF6D28D9);
+
   static const Color infoBg = Color(0x1F4382DF);
   static const Color infoText = Color(0xFF1D4ED8);
 
@@ -101,6 +105,13 @@ class AppBadge {
         bg: AppColors.warningBg,
         fg: AppColors.warningText,
         icon: Icons.pending,
+      );
+
+  static Widget reserved({String label = 'Reserved'}) => _statusBadge(
+        label: label,
+        bg: AppColors.reservedBg,
+        fg: AppColors.reservedText,
+        icon: Icons.bookmark,
       );
 
   static Widget status({

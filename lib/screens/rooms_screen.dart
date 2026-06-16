@@ -282,6 +282,7 @@ class _RoomContentState extends ConsumerState<_RoomContent> {
 
   Widget _statusBadge(String s) {
     if (s == 'occupied') return AppBadge.paid(label: 'Occupied');
+    if (s == 'reserved') return AppBadge.reserved(label: 'Reserved');
     if (s == 'maintenance') return AppBadge.partial(label: 'Maint.');
     return AppBadge.status(label: 'Void', bg: AppColors.canvas, fg: AppColors.textSecondary);
   }
@@ -416,6 +417,7 @@ class _RoomContentState extends ConsumerState<_RoomContent> {
   void _showRoomSettings(BuildContext ctx, WidgetRef ref, Room room) {
     final repo = ref.read(supabaseRepositoryProvider);
     final rentCtrl = TextEditingController(text: room.monthlyRent.toString());
+    final reservedCtrl = TextEditingController(text: room.reservedAmount > 0 ? room.reservedAmount.toString() : '');
     String status = room.status;
     String floor = room.floor;
 
@@ -439,9 +441,18 @@ class _RoomContentState extends ConsumerState<_RoomContent> {
                   DropdownMenuItem(value: 'occupied', child: Text('مشغولة')),
                   DropdownMenuItem(value: 'void', child: Text('فارغة')),
                   DropdownMenuItem(value: 'maintenance', child: Text('صيانة')),
+                  DropdownMenuItem(value: 'reserved', child: Text('محجوزة')),
                 ],
                 onChanged: (v) => setDialogState(() => status = v!),
               ),
+              if (status == 'reserved') ...[
+                const SizedBox(height: 12),
+                TextField(
+                  controller: reservedCtrl,
+                  decoration: const InputDecoration(labelText: 'مبلغ الحجز (جنيه)', border: OutlineInputBorder()),
+                  keyboardType: TextInputType.number,
+                ),
+              ],
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 value: floor,
@@ -464,10 +475,12 @@ class _RoomContentState extends ConsumerState<_RoomContent> {
                 if (!authed) return;
 
                 final rent = double.tryParse(rentCtrl.text) ?? room.monthlyRent;
+                final reservedAmt = status == 'reserved' ? (double.tryParse(reservedCtrl.text) ?? 0) : 0.0;
                 try {
                   await repo.updateRoom(room.copyWith(
                     monthlyRent: rent,
                     status: status,
+                    reservedAmount: reservedAmt,
                     floor: floor,
                   ));
                   await _log(
@@ -475,9 +488,9 @@ class _RoomContentState extends ConsumerState<_RoomContent> {
                     entityType: 'room',
                     entityId: room.id.toString(),
                     entityName: 'Room ${room.displayRoomNumber}',
-                    oldVal: {'rent': room.monthlyRent, 'status': room.status, 'floor': room.floor},
-                    newVal: {'rent': rent, 'status': status, 'floor': floor},
-                    details: 'Updated Room ${room.displayRoomNumber}: rent=$rent, status=$status, floor=$floor',
+                    oldVal: {'rent': room.monthlyRent, 'status': room.status, 'floor': room.floor, 'reserved': room.reservedAmount},
+                    newVal: {'rent': rent, 'status': status, 'floor': floor, 'reserved': reservedAmt},
+                    details: 'Updated Room ${room.displayRoomNumber}: rent=$rent, status=$status, floor=$floor, reserved=$reservedAmt',
                   );
                   if (dCtx.mounted) Navigator.pop(dCtx);
                   setState(() {});
@@ -588,6 +601,7 @@ class _RoomCard extends ConsumerWidget {
                 ),
                 const SizedBox(width: 8),
                 if (room.isOccupied) AppBadge.paid(label: 'مشغول'),
+                if (room.isReserved) AppBadge.reserved(label: 'محجوزة'),
                 if (room.isVoid) AppBadge.status(label: 'فارغ', bg: AppColors.canvas, fg: AppColors.textSecondary),
                 if (room.isMaintenance) AppBadge.partial(label: 'صيانة'),
               ]),
@@ -605,6 +619,13 @@ class _RoomCard extends ConsumerWidget {
                 ]),
                 const SizedBox(height: 8),
                 tenant!.isPaid ? AppBadge.paid(label: 'مدفوع') : AppBadge.unpaid(label: 'متأخر'),
+              ] else if (room.isReserved) ...[
+                const SizedBox(height: 8),
+                Row(children: [
+                  Icon(Icons.bookmark, size: 14, color: AppColors.reserved),
+                  const SizedBox(width: 4),
+                  Text('محجوزة — ${room.reservedAmount.toStringAsFixed(0)} جنيه', style: TextStyle(fontSize: 12, color: AppColors.reserved, fontWeight: FontWeight.w600)),
+                ]),
               ] else ...[
                 const SizedBox(height: 8),
                 Center(child: Text('فارغة — اضغط لإضافة ساكن', style: TextStyle(color: AppColors.textSecondary, fontStyle: FontStyle.italic, fontSize: 13))),
