@@ -114,6 +114,15 @@ class SupabaseRepository {
   }
 
   Future<Tenant> addTenant(Tenant tenant) async {
+    // Auto-set insurance to room's monthly rent if not set
+    double insurance = tenant.insuranceAmount;
+    if (insurance == 0 && tenant.roomId != null) {
+      final roomData = await _client.from('rooms').select('monthly_rent').eq('id', tenant.roomId!).maybeSingle();
+      if (roomData != null) {
+        insurance = (roomData['monthly_rent'] as num?)?.toDouble() ?? 0;
+      }
+    }
+
     final data = await _client.from('tenants').insert({
       'name': tenant.name,
       'phone': tenant.phone,
@@ -121,7 +130,7 @@ class SupabaseRepository {
       'room_id': tenant.roomId,
       'building_id': tenant.buildingId,
       'status': tenant.status,
-      'insurance_amount': tenant.insuranceAmount,
+      'insurance_amount': insurance,
       'insurance_returned': tenant.insuranceReturned,
       'payment_status': tenant.paymentStatus,
       'due_date': tenant.dueDate?.toIso8601String().split('T').first,
@@ -130,7 +139,13 @@ class SupabaseRepository {
 
     // Auto-set room to occupied when tenant is assigned
     if (tenant.roomId != null && tenant.status == 'active') {
-      await _client.from('rooms').update({'status': 'occupied'}).eq('id', tenant.roomId!);
+      try {
+        await _client.from('rooms').update({'status': 'occupied'}).eq('id', tenant.roomId!);
+      } catch (e) {
+        // Log but don't fail — tenant is already created
+        // ignore: avoid_print
+        print('Warning: Could not update room status to occupied: $e');
+      }
     }
 
     return Tenant.fromJson(data);
