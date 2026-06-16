@@ -181,6 +181,7 @@ class _RoomContentState extends ConsumerState<_RoomContent> {
                           room: room,
                           tenant: tenantMap[room.id],
                           buildingId: widget.buildingId,
+                          onTap: () => _showRoomActions(context, room, tenantMap[room.id]),
                         )),
                       ],
                     );
@@ -291,6 +292,235 @@ class _RoomContentState extends ConsumerState<_RoomContent> {
     ref.read(supabaseRepositoryProvider).markTenantPaid(tenantId);
   }
 
+  // ── Tenant Form ───────────────────────────────────
+  void _showTenantForm(BuildContext ctx, WidgetRef ref, Room room, Tenant? existing) {
+    final repo = ref.read(supabaseRepositoryProvider);
+    final nameCtrl = TextEditingController(text: existing?.name ?? '');
+    final phoneCtrl = TextEditingController(text: existing?.phone ?? '');
+    final rentCtrl = TextEditingController(text: existing?.insuranceAmount.toString() ?? room.monthlyRent.toString());
+    final dayCtrl = TextEditingController(text: existing?.dueDate?.day.toString() ?? '1');
+    String gender = existing?.gender ?? 'male';
+
+    showDialog(
+      context: ctx,
+      builder: (dCtx) => StatefulBuilder(
+        builder: (dCtx, setDialogState) => AlertDialog(
+          title: Text(existing == null ? 'إضافة ساكن' : 'تعديل الساكن'),
+          content: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'الاسم', border: OutlineInputBorder())),
+              const SizedBox(height: 12),
+              TextField(controller: phoneCtrl, decoration: const InputDecoration(labelText: 'رقم الهاتف', border: OutlineInputBorder())),
+              const SizedBox(height: 12),
+              TextField(controller: rentCtrl, decoration: const InputDecoration(labelText: 'الإيجار الشهري', border: OutlineInputBorder()), keyboardType: TextInputType.number),
+              const SizedBox(height: 12),
+              TextField(controller: dayCtrl, decoration: const InputDecoration(labelText: 'يوم الدفع (1-31)', border: OutlineInputBorder()), keyboardType: TextInputType.number),
+              const SizedBox(height: 12),
+              Row(children: [
+                const Text('الجنس: '),
+                Radio<String>(value: 'male', groupValue: gender, onChanged: (v) => setDialogState(() => gender = v!)),
+                const Text('ذكر'),
+                Radio<String>(value: 'female', groupValue: gender, onChanged: (v) => setDialogState(() => gender = v!)),
+                const Text('أنثى'),
+              ]),
+            ]),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dCtx), child: const Text('إلغاء')),
+            FilledButton(
+              onPressed: () async {
+                final authed = await showPasswordDialog(ctx, ref);
+                if (!authed) return;
+
+                final now = DateTime.now();
+                final day = int.tryParse(dayCtrl.text) ?? 1;
+                final rent = double.tryParse(rentCtrl.text) ?? 0;
+
+                try {
+                  if (existing == null) {
+                    final newTenant = await repo.addTenant(Tenant(
+                      id: '',
+                      name: nameCtrl.text,
+                      phone: phoneCtrl.text,
+                      roomId: room.id,
+                      buildingId: widget.buildingId,
+                      gender: gender,
+                      insuranceAmount: rent,
+                      dueDate: DateTime(now.year, now.month + 1 <= 12 ? now.month + 1 : 1, day),
+                      createdAt: now,
+                    ));
+                    await _log(
+                      action: 'create',
+                      entityType: 'tenant',
+                      entityId: newTenant.id,
+                      entityName: newTenant.name,
+                      newVal: {'name': newTenant.name, 'phone': newTenant.phone, 'rent': rent, 'room': room.displayRoomNumber},
+                      details: 'Added ${newTenant.name} to Room ${room.displayRoomNumber}',
+                    );
+                  } else {
+                    final oldName = existing.name;
+                    await repo.updateTenant(existing.copyWith(
+                      name: nameCtrl.text,
+                      phone: phoneCtrl.text,
+                      insuranceAmount: rent,
+                      dueDate: DateTime(now.year, now.month + 1 <= 12 ? now.month + 1 : 1, day),
+                      gender: gender,
+                    ));
+                    await _log(
+                      action: 'update',
+                      entityType: 'tenant',
+                      entityId: existing.id,
+                      entityName: nameCtrl.text,
+                      oldVal: {'name': oldName, 'phone': existing.phone},
+                      newVal: {'name': nameCtrl.text, 'phone': phoneCtrl.text, 'rent': rent},
+                      details: 'Updated ${nameCtrl.text} in Room ${room.displayRoomNumber}',
+                    );
+                  }
+                  if (dCtx.mounted) Navigator.pop(dCtx);
+                  setState(() {});
+                } catch (e) {
+                  if (dCtx.mounted) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Error: $e')));
+                  }
+                }
+              },
+              child: Text(existing == null ? 'إضافة' : 'حفظ'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Move Tenant ───────────────────────────────────
+  void _showMoveTenant(BuildContext ctx, WidgetRef ref, Room currentRoom, Tenant tenant) {
+    showDialog(
+      context: ctx,
+      builder: (dCtx) => AlertDialog(
+        title: Text('نقل ${tenant.name}'),
+        content: Text('من أوضة ${currentRoom.roomNumber} إلى...'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dCtx), child: const Text('إلغاء')),
+          FilledButton(
+            onPressed: () async {
+              Navigator.pop(dCtx);
+            },
+            child: const Text('اختيار أوضة'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Room Settings ─────────────────────────────────
+  void _showRoomSettings(BuildContext ctx, WidgetRef ref, Room room) {
+    final repo = ref.read(supabaseRepositoryProvider);
+    final rentCtrl = TextEditingController(text: room.monthlyRent.toString());
+    String status = room.status;
+    String floor = room.floor;
+
+    showDialog(
+      context: ctx,
+      builder: (dCtx) => StatefulBuilder(
+        builder: (dCtx, setDialogState) => AlertDialog(
+          title: Text('إعدادات أوضة ${room.roomNumber}'),
+          content: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              TextField(
+                controller: rentCtrl,
+                decoration: const InputDecoration(labelText: 'الإيجار الشهري', border: OutlineInputBorder()),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: status,
+                decoration: const InputDecoration(labelText: 'الحالة', border: OutlineInputBorder()),
+                items: const [
+                  DropdownMenuItem(value: 'occupied', child: Text('مشغولة')),
+                  DropdownMenuItem(value: 'void', child: Text('فارغة')),
+                  DropdownMenuItem(value: 'maintenance', child: Text('صيانة')),
+                ],
+                onChanged: (v) => setDialogState(() => status = v!),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: floor,
+                decoration: const InputDecoration(labelText: 'الطابق', border: OutlineInputBorder()),
+                items: const [
+                  DropdownMenuItem(value: 'G', child: Text('الأرضي')),
+                  DropdownMenuItem(value: 'F', child: Text('الأول')),
+                  DropdownMenuItem(value: 'S', child: Text('الثاني')),
+                  DropdownMenuItem(value: 'T', child: Text('الثالث')),
+                ],
+                onChanged: (v) => setDialogState(() => floor = v!),
+              ),
+            ]),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dCtx), child: const Text('إلغاء')),
+            FilledButton(
+              onPressed: () async {
+                final authed = await showPasswordDialog(ctx, ref);
+                if (!authed) return;
+
+                final rent = double.tryParse(rentCtrl.text) ?? room.monthlyRent;
+                try {
+                  await repo.updateRoom(room.copyWith(
+                    monthlyRent: rent,
+                    status: status,
+                    floor: floor,
+                  ));
+                  await _log(
+                    action: 'update',
+                    entityType: 'room',
+                    entityId: room.id.toString(),
+                    entityName: 'Room ${room.displayRoomNumber}',
+                    oldVal: {'rent': room.monthlyRent, 'status': room.status, 'floor': room.floor},
+                    newVal: {'rent': rent, 'status': status, 'floor': floor},
+                    details: 'Updated Room ${room.displayRoomNumber}: rent=$rent, status=$status, floor=$floor',
+                  );
+                  if (dCtx.mounted) Navigator.pop(dCtx);
+                  setState(() {});
+                } catch (e) {
+                  if (dCtx.mounted) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Error: $e')));
+                  }
+                }
+              },
+              child: const Text('حفظ'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _log({
+    required String action,
+    required String entityType,
+    String? entityId,
+    String? entityName,
+    Map<String, dynamic>? oldVal,
+    Map<String, dynamic>? newVal,
+    String? details,
+  }) async {
+    try {
+      final repo = ref.read(supabaseRepositoryProvider);
+      await repo.logChange(
+        deviceCode: 'ADMIN',
+        adminName: 'Admin',
+        action: action,
+        entityType: entityType,
+        entityId: entityId,
+        entityName: entityName,
+        oldValue: oldVal,
+        newValue: newVal,
+        details: details,
+        buildingId: widget.buildingId,
+      );
+    } catch (_) {}
+  }
+
   void _showRoomActions(BuildContext ctx, Room room, Tenant? tenant) {
     showModalBottomSheet(
       context: ctx,
@@ -301,6 +531,10 @@ class _RoomContentState extends ConsumerState<_RoomContent> {
         buildingId: widget.buildingId,
         rootContext: ctx,
         onRefresh: () => setState(() {}),
+        onAddTenant: () => _showTenantForm(ctx, ref, room, null),
+        onEditTenant: () => _showTenantForm(ctx, ref, room, tenant),
+        onMoveTenant: () => _showMoveTenant(ctx, ref, room, tenant!),
+        onRoomSettings: () => _showRoomSettings(ctx, ref, room),
       ),
     );
   }
@@ -314,15 +548,16 @@ class _RoomCard extends ConsumerWidget {
   final Room room;
   final Tenant? tenant;
   final int buildingId;
+  final VoidCallback onTap;
 
-  const _RoomCard({required this.room, this.tenant, required this.buildingId});
+  const _RoomCard({required this.room, this.tenant, required this.buildingId, required this.onTap});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final hasTenant = tenant != null && room.isOccupied;
 
     return GestureDetector(
-      onTap: () => _showActions(context, ref),
+      onTap: onTap,
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         decoration: AppDecorations.card(context),
@@ -388,26 +623,6 @@ class _RoomCard extends ConsumerWidget {
       Text(text, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
     ]);
   }
-
-  void _showActions(BuildContext ctx, WidgetRef ref) {
-    showModalBottomSheet(
-      context: ctx,
-      backgroundColor: Colors.transparent,
-      builder: (bCtx) => _RoomActionsSheet(
-        room: room,
-        tenant: tenant,
-        buildingId: buildingId,
-        rootContext: ctx,
-        onRefresh: () {
-          // Force rebuild by navigating to same screen
-          if (ctx.mounted) {
-            ref.invalidate(roomsStreamProvider(buildingId));
-            ref.invalidate(tenantsStreamProvider(buildingId));
-          }
-        },
-      ),
-    );
-  }
 }
 
 // ════════════════════════════════════════════════════════
@@ -420,6 +635,10 @@ class _RoomActionsSheet extends ConsumerStatefulWidget {
   final int buildingId;
   final BuildContext rootContext;
   final VoidCallback onRefresh;
+  final VoidCallback onAddTenant;
+  final VoidCallback onEditTenant;
+  final VoidCallback onMoveTenant;
+  final VoidCallback onRoomSettings;
 
   const _RoomActionsSheet({
     required this.room,
@@ -427,6 +646,10 @@ class _RoomActionsSheet extends ConsumerStatefulWidget {
     required this.buildingId,
     required this.rootContext,
     required this.onRefresh,
+    required this.onAddTenant,
+    required this.onEditTenant,
+    required this.onMoveTenant,
+    required this.onRoomSettings,
   });
 
   @override
@@ -485,9 +708,7 @@ class _RoomActionsSheetState extends ConsumerState<_RoomActionsSheet> {
         details: details,
         buildingId: widget.buildingId,
       );
-    } catch (_) {
-      // Silently fail — don't block the main operation
-    }
+    } catch (_) {}
   }
 
   Future<void> _run(Future<void> fn, {String? logAction, String? logEntity, String? logEntityId, String? logEntityName, Map<String, dynamic>? logOld, Map<String, dynamic>? logNew, String? logDetails, bool requiresAuth = false}) async {
@@ -498,7 +719,6 @@ class _RoomActionsSheetState extends ConsumerState<_RoomActionsSheet> {
     setState(() => _loading = true);
     try {
       await fn;
-      // Log the change
       if (logAction != null && mounted) {
         await _log(
           action: logAction,
@@ -594,12 +814,12 @@ class _RoomActionsSheetState extends ConsumerState<_RoomActionsSheet> {
                   // Edit tenant
                   _action(Icons.edit, 'تعديل الساكن', AppColors.secondary, () {
                     Navigator.pop(context);
-                    _showTenantForm(widget.rootContext, ref, room, tenant);
+                    widget.onEditTenant();
                   }),
                   // Move tenant
                   _action(Icons.swap_horiz, 'نقل الساكن', AppColors.accent, () {
                     Navigator.pop(context);
-                    _showMoveTenant(widget.rootContext, ref, room, tenant);
+                    widget.onMoveTenant();
                   }),
                   // Archive tenant
                   _action(Icons.archive, 'أرشفة الساكن', AppColors.warning, () => _run(
@@ -627,7 +847,7 @@ class _RoomActionsSheetState extends ConsumerState<_RoomActionsSheet> {
                   // Assign tenant
                   _action(Icons.person_add, 'إضافة ساكن', AppColors.success, () {
                     Navigator.pop(context);
-                    _showTenantForm(widget.rootContext, ref, room, null);
+                    widget.onAddTenant();
                   }),
                 ],
 
@@ -635,7 +855,7 @@ class _RoomActionsSheetState extends ConsumerState<_RoomActionsSheet> {
                 const Divider(height: 1),
                 _action(Icons.settings, 'إعدادات الأوضة (السعر / الحالة / الطابق)', AppColors.accent, () {
                   Navigator.pop(context);
-                  _showRoomSettings(widget.rootContext, ref, room);
+                  widget.onRoomSettings();
                 }),
                 // Delete room
                 _action(Icons.delete, 'مسح الأوضة', AppColors.danger, () => _run(
@@ -673,215 +893,6 @@ class _RoomActionsSheetState extends ConsumerState<_RoomActionsSheet> {
     final clean = phone.replaceAll(RegExp(r'[^\d]'), '');
     final uri = Uri.parse('https://wa.me/$clean');
     if (await canLaunchUrl(uri)) await launchUrl(uri);
-  }
-
-  // ── Tenant Form ───────────────────────────────────
-  void _showTenantForm(BuildContext ctx, WidgetRef ref, Room room, Tenant? existing) {
-    final repo = ref.read(supabaseRepositoryProvider);
-    final nameCtrl = TextEditingController(text: existing?.name ?? '');
-    final phoneCtrl = TextEditingController(text: existing?.phone ?? '');
-    final rentCtrl = TextEditingController(text: existing?.insuranceAmount.toString() ?? room.monthlyRent.toString());
-    final dayCtrl = TextEditingController(text: existing?.dueDate?.day.toString() ?? '1');
-    String gender = existing?.gender ?? 'male';
-
-    showDialog(
-      context: ctx,
-      builder: (dCtx) => StatefulBuilder(
-        builder: (dCtx, setDialogState) => AlertDialog(
-          title: Text(existing == null ? 'إضافة ساكن' : 'تعديل الساكن'),
-          content: SingleChildScrollView(
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'الاسم', border: OutlineInputBorder())),
-              const SizedBox(height: 12),
-              TextField(controller: phoneCtrl, decoration: const InputDecoration(labelText: 'رقم الهاتف', border: OutlineInputBorder())),
-              const SizedBox(height: 12),
-              TextField(controller: rentCtrl, decoration: const InputDecoration(labelText: 'الإيجار الشهري', border: OutlineInputBorder()), keyboardType: TextInputType.number),
-              const SizedBox(height: 12),
-              TextField(controller: dayCtrl, decoration: const InputDecoration(labelText: 'يوم الدفع (1-31)', border: OutlineInputBorder()), keyboardType: TextInputType.number),
-              const SizedBox(height: 12),
-              Row(children: [
-                const Text('الجنس: '),
-                Radio<String>(value: 'male', groupValue: gender, onChanged: (v) => setDialogState(() => gender = v!)),
-                const Text('ذكر'),
-                Radio<String>(value: 'female', groupValue: gender, onChanged: (v) => setDialogState(() => gender = v!)),
-                const Text('أنثى'),
-              ]),
-            ]),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(dCtx), child: const Text('إلغاء')),
-            FilledButton(
-              onPressed: () async {
-                // Password gate
-                final authed = await showPasswordDialog(ctx, ref);
-                if (!authed) return;
-
-                final now = DateTime.now();
-                final day = int.tryParse(dayCtrl.text) ?? 1;
-                final rent = double.tryParse(rentCtrl.text) ?? 0;
-
-                try {
-                  if (existing == null) {
-                    final newTenant = await repo.addTenant(Tenant(
-                      id: '',
-                      name: nameCtrl.text,
-                      phone: phoneCtrl.text,
-                      roomId: room.id,
-                      buildingId: widget.buildingId,
-                      gender: gender,
-                    insuranceAmount: rent,
-                    dueDate: DateTime(now.year, now.month + 1 <= 12 ? now.month + 1 : 1, day),
-                    createdAt: now,
-                    ));
-                    // Log create
-                    await _log(
-                      action: 'create',
-                      entityType: 'tenant',
-                      entityId: newTenant.id,
-                      entityName: newTenant.name,
-                      newVal: {'name': newTenant.name, 'phone': newTenant.phone, 'rent': rent, 'room': room.displayRoomNumber},
-                      details: 'Added ${newTenant.name} to Room ${room.displayRoomNumber}',
-                    );
-                  } else {
-                    final oldName = existing.name;
-                    await repo.updateTenant(existing.copyWith(
-                      name: nameCtrl.text,
-                      phone: phoneCtrl.text,
-                      insuranceAmount: rent,
-                      dueDate: DateTime(now.year, now.month + 1 <= 12 ? now.month + 1 : 1, day),
-                      gender: gender,
-                    ));
-                    // Log update
-                    await _log(
-                      action: 'update',
-                      entityType: 'tenant',
-                      entityId: existing.id,
-                      entityName: nameCtrl.text,
-                      oldVal: {'name': oldName, 'phone': existing.phone},
-                      newVal: {'name': nameCtrl.text, 'phone': phoneCtrl.text, 'rent': rent},
-                      details: 'Updated ${nameCtrl.text} in Room ${room.displayRoomNumber}',
-                    );
-                  }
-                  if (dCtx.mounted) Navigator.pop(dCtx);
-                  widget.onRefresh();
-                } catch (e) {
-                  if (dCtx.mounted) {
-                    ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Error: $e')));
-                  }
-                }
-              },
-              child: Text(existing == null ? 'إضافة' : 'حفظ'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ── Move Tenant ───────────────────────────────────
-  void _showMoveTenant(BuildContext ctx, WidgetRef ref, Room currentRoom, Tenant tenant) {
-    showDialog(
-      context: ctx,
-      builder: (dCtx) => AlertDialog(
-        title: Text('نقل ${tenant.name}'),
-        content: Text('من أوضة ${currentRoom.roomNumber} إلى...'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dCtx), child: const Text('إلغاء')),
-          FilledButton(
-            onPressed: () async {
-              // For now, just close — in a full implementation you'd show a room picker
-              Navigator.pop(dCtx);
-            },
-            child: const Text('اختيار أوضة'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Room Settings ─────────────────────────────────
-  void _showRoomSettings(BuildContext ctx, WidgetRef ref, Room room) {
-    final repo = ref.read(supabaseRepositoryProvider);
-    final rentCtrl = TextEditingController(text: room.monthlyRent.toString());
-    String status = room.status;
-    String floor = room.floor;
-
-    showDialog(
-      context: ctx,
-      builder: (dCtx) => StatefulBuilder(
-        builder: (dCtx, setDialogState) => AlertDialog(
-          title: Text('إعدادات أوضة ${room.roomNumber}'),
-          content: SingleChildScrollView(
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              TextField(
-                controller: rentCtrl,
-                decoration: const InputDecoration(labelText: 'الإيجار الشهري', border: OutlineInputBorder()),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: status,
-                decoration: const InputDecoration(labelText: 'الحالة', border: OutlineInputBorder()),
-                items: const [
-                  DropdownMenuItem(value: 'occupied', child: Text('مشغولة')),
-                  DropdownMenuItem(value: 'void', child: Text('فارغة')),
-                  DropdownMenuItem(value: 'maintenance', child: Text('صيانة')),
-                ],
-                onChanged: (v) => setDialogState(() => status = v!),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: floor,
-                decoration: const InputDecoration(labelText: 'الطابق', border: OutlineInputBorder()),
-                items: const [
-                  DropdownMenuItem(value: 'G', child: Text('الأرضي')),
-                  DropdownMenuItem(value: 'F', child: Text('الأول')),
-                  DropdownMenuItem(value: 'S', child: Text('الثاني')),
-                  DropdownMenuItem(value: 'T', child: Text('الثالث')),
-                ],
-                onChanged: (v) => setDialogState(() => floor = v!),
-              ),
-            ]),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(dCtx), child: const Text('إلغاء')),
-            FilledButton(
-              onPressed: () async {
-                // Password gate
-                final authed = await showPasswordDialog(ctx, ref);
-                if (!authed) return;
-
-                final rent = double.tryParse(rentCtrl.text) ?? room.monthlyRent;
-                try {
-                  await repo.updateRoom(room.copyWith(
-                    monthlyRent: rent,
-                    status: status,
-                    floor: floor,
-                  ));
-                  // Log room settings change
-                  await _log(
-                    action: 'update',
-                    entityType: 'room',
-                    entityId: room.id.toString(),
-                    entityName: 'Room ${room.displayRoomNumber}',
-                    oldVal: {'rent': room.monthlyRent, 'status': room.status, 'floor': room.floor},
-                    newVal: {'rent': rent, 'status': status, 'floor': floor},
-                    details: 'Updated Room ${room.displayRoomNumber}: rent=$rent, status=$status, floor=$floor',
-                  );
-                  if (dCtx.mounted) Navigator.pop(dCtx);
-                  widget.onRefresh();
-                } catch (e) {
-                  if (dCtx.mounted) {
-                    ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Error: $e')));
-                  }
-                }
-              },
-              child: const Text('حفظ'),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
 
