@@ -299,6 +299,7 @@ class _RoomContentState extends ConsumerState<_RoomContent> {
         room: room,
         tenant: tenant,
         buildingId: widget.buildingId,
+        rootContext: ctx,
         onRefresh: () => setState(() {}),
       ),
     );
@@ -396,6 +397,7 @@ class _RoomCard extends ConsumerWidget {
         room: room,
         tenant: tenant,
         buildingId: buildingId,
+        rootContext: ctx,
         onRefresh: () {
           // Force rebuild by navigating to same screen
           if (ctx.mounted) {
@@ -416,12 +418,14 @@ class _RoomActionsSheet extends ConsumerStatefulWidget {
   final Room room;
   final Tenant? tenant;
   final int buildingId;
+  final BuildContext rootContext;
   final VoidCallback onRefresh;
 
   const _RoomActionsSheet({
     required this.room,
     this.tenant,
     required this.buildingId,
+    required this.rootContext,
     required this.onRefresh,
   });
 
@@ -447,7 +451,7 @@ class _RoomActionsSheetState extends ConsumerState<_RoomActionsSheet> {
 
   /// Shows password dialog and returns true if authenticated.
   Future<bool> _requireAuth() async {
-    return showPasswordDialog(context, ref);
+    return showPasswordDialog(widget.rootContext, ref);
   }
 
   /// Wraps an async action with password gate. Returns true if action ran.
@@ -508,11 +512,11 @@ class _RoomActionsSheetState extends ConsumerState<_RoomActionsSheet> {
       }
       if (mounted) {
         widget.onRefresh();
-        Navigator.pop(context);
+        Navigator.of(widget.rootContext).pop();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(widget.rootContext).showSnackBar(
           SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.danger),
         );
       }
@@ -590,12 +594,12 @@ class _RoomActionsSheetState extends ConsumerState<_RoomActionsSheet> {
                   // Edit tenant
                   _action(Icons.edit, 'تعديل الساكن', AppColors.secondary, () {
                     Navigator.pop(context);
-                    _showTenantForm(context, ref, room, tenant);
+                    _showTenantForm(widget.rootContext, ref, room, tenant);
                   }),
                   // Move tenant
                   _action(Icons.swap_horiz, 'نقل الساكن', AppColors.accent, () {
                     Navigator.pop(context);
-                    _showMoveTenant(context, ref, room, tenant);
+                    _showMoveTenant(widget.rootContext, ref, room, tenant);
                   }),
                   // Archive tenant
                   _action(Icons.archive, 'أرشفة الساكن', AppColors.warning, () => _run(
@@ -623,7 +627,7 @@ class _RoomActionsSheetState extends ConsumerState<_RoomActionsSheet> {
                   // Assign tenant
                   _action(Icons.person_add, 'إضافة ساكن', AppColors.success, () {
                     Navigator.pop(context);
-                    _showTenantForm(context, ref, room, null);
+                    _showTenantForm(widget.rootContext, ref, room, null);
                   }),
                 ],
 
@@ -631,7 +635,7 @@ class _RoomActionsSheetState extends ConsumerState<_RoomActionsSheet> {
                 const Divider(height: 1),
                 _action(Icons.settings, 'إعدادات الأوضة (السعر / الحالة / الطابق)', AppColors.accent, () {
                   Navigator.pop(context);
-                  _showRoomSettings(context, ref, room);
+                  _showRoomSettings(widget.rootContext, ref, room);
                 }),
                 // Delete room
                 _action(Icons.delete, 'مسح الأوضة', AppColors.danger, () => _run(
