@@ -6,6 +6,7 @@ import 'config/app_config.dart';
 import 'config/app_theme.dart';
 import 'widgets/responsive_shell.dart';
 import 'services/notification_service.dart';
+import 'providers/app_providers.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,6 +38,8 @@ class _HostelManagerAppState extends ConsumerState<HostelManagerApp> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       NotificationService.instance.runAllChecks();
+      // Auto-update payment status based on due dates
+      ref.read(supabaseRepositoryProvider).autoUpdatePaymentStatus().catchError((_) => 0);
     });
   }
 
