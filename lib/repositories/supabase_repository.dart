@@ -199,7 +199,24 @@ class SupabaseRepository {
   }
 
   Future<void> markTenantPaid(String id) async {
-    await _client.from('tenants').update({'payment_status': 'paid'}).eq('id', id);
+    // Get current tenant to find due_date
+    final data = await _client.from('tenants').select('due_date').eq('id', id).single();
+    final dueDateStr = data['due_date'] as String?;
+    
+    // Advance due_date to next month's payment day
+    String? newDue;
+    if (dueDateStr != null) {
+      final due = DateTime.parse(dueDateStr);
+      final nextMonth = due.month + 1;
+      final year = nextMonth > 12 ? due.year + 1 : due.year;
+      final month = nextMonth > 12 ? 1 : nextMonth;
+      newDue = '$year-${month.toString().padLeft(2, '0')}-${due.day.toString().padLeft(2, '0')}';
+    }
+    
+    await _client.from('tenants').update({
+      'payment_status': 'paid',
+      if (newDue != null) 'due_date': newDue,
+    }).eq('id', id);
   }
 
   // ════════════════════════════════════════════════════════
@@ -465,6 +482,38 @@ class SupabaseRepository {
       'netBalance': totalRentCollected - totalExpenses - totalOpCosts,
       'pendingTasks': pendingTasks.length,
     };
+  }
+
+  // ════════════════════════════════════════════════════════
+  // PAYMENT STATUS AUTO-UPDATE
+  // ════════════════════════════════════════════════════════
+
+  /// Auto-update payment_status for all tenants based on due_date.
+  /// If today > due_date → unpaid, else → paid.
+  /// Call this on app startup and periodically.
+  Future<int> autoUpdatePaymentStatus({int? buildingId}) async {
+    final tenants = buildingId != null
+        ? await getActiveTenants(buildingId: buildingId)
+        : await _client.from('tenants').select().eq('status', 'active').then(
+            (data) => (data as List).map((e) => Tenant.fromJson(e)).toList());
+    final now = DateTime.now();
+    int updated = 0;
+
+    for (final t in tenants) {
+      if (t.dueDate == null) continue;
+
+      final isPastDue = t.dueDate!.isBefore(now);
+      final shouldChange = isPastDue ? t.isPaid : t.isUnpaid;
+
+      if (shouldChange) {
+        await _client.from('tenants').update({
+          'payment_status': isPastDue ? 'unpaid' : 'paid',
+        }).eq('id', t.id);
+        updated++;
+      }
+    }
+
+    return updated;
   }
 
   // ════════════════════════════════════════════════════════

@@ -712,9 +712,9 @@ class _RoomActionsSheetState extends ConsumerState<_RoomActionsSheet> {
                       roomId: room.id,
                       buildingId: widget.buildingId,
                       gender: gender,
-                      insuranceAmount: rent,
-                      dueDate: DateTime(now.year, now.month, day),
-                      createdAt: now,
+                    insuranceAmount: rent,
+                    dueDate: DateTime(now.year, now.month + 1 <= 12 ? now.month + 1 : 1, day),
+                    createdAt: now,
                     ));
                     // Log create
                     await _log(
@@ -731,7 +731,7 @@ class _RoomActionsSheetState extends ConsumerState<_RoomActionsSheet> {
                       name: nameCtrl.text,
                       phone: phoneCtrl.text,
                       insuranceAmount: rent,
-                      dueDate: DateTime(now.year, now.month, day),
+                      dueDate: DateTime(now.year, now.month + 1 <= 12 ? now.month + 1 : 1, day),
                       gender: gender,
                     ));
                     // Log update
