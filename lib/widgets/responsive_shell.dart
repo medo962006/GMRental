@@ -209,7 +209,11 @@ class ResponsiveShell extends ConsumerWidget {
                     decoration: BoxDecoration(
                         color: AppColors.accent,
                         borderRadius: BorderRadius.circular(12)),
-                    child: const Icon(Icons.apartment, color: Colors.white, size: 22),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.asset('assets/images/gmrental_logo.png',
+                          width: 40, height: 40, fit: BoxFit.cover),
+                    ),
                   ),
                   const SizedBox(width: 10),
                   const Text('Hostel Manager',
@@ -303,7 +307,11 @@ class ResponsiveShell extends ConsumerWidget {
                 Container(
                   width: 44, height: 44,
                   decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(14)),
-                  child: const Icon(Icons.apartment, color: Colors.white, size: 24),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: Image.asset('assets/images/gmrental_logo.png',
+                        width: 44, height: 44, fit: BoxFit.cover),
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
