@@ -869,6 +869,8 @@ class _RoomActionsSheetState extends ConsumerState<_RoomActionsSheet> {
 }
 
 int _extractNum(String rn) {
-  final m = RegExp(r'^(\d+)').firstMatch(rn);
+  // Handle room numbers like "B7G" → 7, "B13F" → 13, "1G" → 1
+  final cleaned = rn.startsWith('B') && rn.length > 1 ? rn.substring(1) : rn;
+  final m = RegExp(r'^(\d+)').firstMatch(cleaned);
   return m != null ? int.parse(m.group(1)!) : 0;
 }
