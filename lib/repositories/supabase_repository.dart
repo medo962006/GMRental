@@ -140,7 +140,7 @@ class SupabaseRepository {
     // Auto-set room to occupied when tenant is assigned
     if (tenant.roomId != null && tenant.status == 'active') {
       try {
-        await _client.from('rooms').update({'status': 'occupied'}).eq('id', tenant.roomId!);
+        await _client.from('rooms').update({'status': 'occupied', 'reserved_amount': 0}).eq('id', tenant.roomId!);
       } catch (e) {
         // Log but don't fail — tenant is already created
         // ignore: avoid_print
@@ -466,7 +466,7 @@ class SupabaseRepository {
         tenants.where((t) => t.isPaid).fold(0.0, (sum, t) {
           final room = rooms.firstWhere(
             (r) => r.id == t.roomId,
-            orElse: () => Room(id: 0, roomNumber: '', status: 'void', monthlyRent: 0),
+            orElse: () => Room(id: 0, roomNumber: '', status: 'void', monthlyRent: 0, reservedAmount: 0),
           );
           return sum + room.monthlyRent;
         });
@@ -481,7 +481,7 @@ class SupabaseRepository {
     final totalRentOverdue = overdueTenants.fold(0.0, (sum, t) {
       final room = rooms.firstWhere(
         (r) => r.id == t.roomId,
-        orElse: () => Room(id: 0, roomNumber: '', status: 'void', monthlyRent: 0),
+        orElse: () => Room(id: 0, roomNumber: '', status: 'void', monthlyRent: 0, reservedAmount: 0),
       );
       return sum + room.monthlyRent;
     });
