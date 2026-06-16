@@ -574,6 +574,19 @@ class _RoomActionsSheetState extends ConsumerState<_RoomActionsSheet> {
                       logDetails: 'Marked ${tenant!.name} as paid',
                       requiresAuth: true,
                     )),
+                  // Mark unpaid
+                  if (tenant!.isPaid)
+                    _action(Icons.cancel, 'تسجيل كمتأخر', AppColors.warning, () => _run(
+                      repo.markTenantUnpaid(tenant!.id),
+                      logAction: 'mark_unpaid',
+                      logEntity: 'tenant',
+                      logEntityId: tenant!.id,
+                      logEntityName: tenant!.name,
+                      logOld: {'payment_status': 'paid'},
+                      logNew: {'payment_status': 'unpaid'},
+                      logDetails: 'Marked ${tenant!.name} as unpaid',
+                      requiresAuth: true,
+                    )),
                   // Edit tenant
                   _action(Icons.edit, 'تعديل الساكن', AppColors.secondary, () {
                     Navigator.pop(context);
