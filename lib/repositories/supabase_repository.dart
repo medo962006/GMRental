@@ -575,7 +575,6 @@ class SupabaseRepository {
     final data = await _client.from('insurance_ledger').update({
       'total_agreed_amount': totalAgreedAmount,
       'amount_paid_so_far': amountPaidSoFar,
-      'remaining_balance': remaining.clamp(0, totalAgreedAmount),
       'status': status,
     }).eq('id', id).select().single();
     return InsuranceLedger.fromJson(data);
