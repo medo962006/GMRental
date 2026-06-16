@@ -64,7 +64,11 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         },
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showCreateForm(context, ref),
+        onPressed: () async {
+          if (!await showPasswordDialog(context, ref)) return;
+          if (!context.mounted) return;
+          _showCreateForm(context, ref);
+        },
         icon: const Icon(Icons.add),
         label: const Text('New Alert'),
       ),
@@ -82,6 +86,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   }
 
   void _createTestNotification(BuildContext ctx, WidgetRef ref) async {
+    if (!await showPasswordDialog(ctx, ref)) return;
     try {
       await ref.read(supabaseRepositoryProvider).createNotification(
         title: '🔔 Test Notification',
@@ -316,6 +321,7 @@ class _NotificationCard extends ConsumerWidget {
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
             onPressed: () async {
+              if (!await showPasswordDialog(dCtx, ref)) return;
               try {
                 await ref.read(supabaseRepositoryProvider).deleteNotification(notification.id);
                 if (dCtx.mounted) Navigator.pop(dCtx);
