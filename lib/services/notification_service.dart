@@ -1,7 +1,6 @@
 // lib/services/notification_service.dart
 // Phase 3.7: Local push notifications + Supabase admin_notifications sync.
 // Web: uses browser Notification API via dart:js. Mobile: flutter_local_notifications.
-import 'dart:js' as js;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -53,36 +52,11 @@ class NotificationService {
   }
 
   /// Show a browser notification (works in WebView on modern Android too)
+  /// No-op on mobile — flutter_local_notifications handles it instead.
   void _showWebNotification({required String title, required String body}) {
-    try {
-      final context = js.context;
-      if (context == null) return;
-
-      // Check if Notification API exists
-      final hasNotification = context.hasProperty('Notification');
-      if (!hasNotification) return;
-
-      final perm = context['Notification']['permission'];
-      if (perm == 'denied') return;
-
-      // Escape strings for JS
-      final t = title.replaceAll('\\', '\\\\').replaceAll("'", "\\'").replaceAll('"', '\\"');
-      final b = body.replaceAll('\\', '\\\\').replaceAll("'", "\\'").replaceAll('"', '\\"');
-
-      if (perm == 'default') {
-        context.callMethod('eval', [
-          "Notification.requestPermission().then(p => { if (p === 'granted') new Notification('$t', {body: '$b'}); })"
-        ]);
-        return;
-      }
-
-      // Permission granted — show notification
-      context.callMethod('eval', [
-        "new Notification('$t', {body: '$b'})"
-      ]);
-    } catch (_) {
-      // Silent fail — don't crash the app
-    }
+    // Web-only: would use dart:js to call browser Notification API.
+    // On mobile this is never reached because show() returns early.
+    // Kept as a no-op stub so the method signature stays consistent.
   }
 
   /// Create a notification in Supabase AND fire a local push.
