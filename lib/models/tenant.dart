@@ -36,7 +36,7 @@ class Tenant {
     this.status = 'active',
     this.insuranceAmount = 0.0,
     this.insuranceReturned = false,
-    this.paymentStatus = 'unpaid',
+    this.paymentStatus = 'paid',
     this.dueDate,
     this.leaseStartDate,
     required this.createdAt,

@@ -347,7 +347,12 @@ class _RoomContentState extends ConsumerState<_RoomContent> {
                       buildingId: widget.buildingId,
                       gender: gender,
                       insuranceAmount: rent,
-                      dueDate: DateTime(now.year, now.month + 1 <= 12 ? now.month + 1 : 1, day),
+                      dueDate: (() {
+                      final targetMonth = now.month + 1 <= 12 ? now.month + 1 : 1;
+                      final targetYear = now.month + 1 <= 12 ? now.year : now.year + 1;
+                      final lastDay = DateTime(targetYear, targetMonth + 1, 0).day;
+                      return DateTime(targetYear, targetMonth, day > lastDay ? lastDay : day);
+                    })(),
                       createdAt: now,
                     ));
                     await _log(
@@ -364,7 +369,12 @@ class _RoomContentState extends ConsumerState<_RoomContent> {
                       name: nameCtrl.text,
                       phone: phoneCtrl.text,
                       insuranceAmount: rent,
-                      dueDate: DateTime(now.year, now.month + 1 <= 12 ? now.month + 1 : 1, day),
+                      dueDate: (() {
+                      final targetMonth = now.month + 1 <= 12 ? now.month + 1 : 1;
+                      final targetYear = now.month + 1 <= 12 ? now.year : now.year + 1;
+                      final lastDay = DateTime(targetYear, targetMonth + 1, 0).day;
+                      return DateTime(targetYear, targetMonth, day > lastDay ? lastDay : day);
+                    })(),
                       gender: gender,
                     ));
                     await _log(
