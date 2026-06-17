@@ -125,7 +125,8 @@ class SupabaseRepository {
       }
     }
 
-    final data = await _client.from('tenants').insert({
+    // Build insert payload — omit id so Supabase auto-generates it
+    final insertData = <String, dynamic>{
       'name': tenant.name,
       'phone': tenant.phone,
       'gender': tenant.gender,
@@ -137,17 +138,16 @@ class SupabaseRepository {
       'payment_status': tenant.paymentStatus,
       'due_date': tenant.dueDate?.toIso8601String().split('T').first,
       'lease_start_date': tenant.leaseStartDate?.toIso8601String().split('T').first,
-    }).select().single();
+    };
+
+    final data = await _client.from('tenants').insert(insertData).select().single();
 
     // Auto-set room to occupied when tenant is assigned
-    if (tenant.roomId != null && tenant.status == 'active') {
-      try {
-        await _client.from('rooms').update({'status': 'occupied', 'reserved_amount': 0}).eq('id', tenant.roomId!);
-      } catch (e) {
-        // Log but don't fail — tenant is already created
-        // ignore: avoid_print
-        print('Warning: Could not update room status to occupied: $e');
-      }
+    if (tenant.roomId != null) {
+      await _client.from('rooms').update({
+        'status': 'occupied',
+        'reserved_amount': 0,
+      }).eq('id', tenant.roomId!);
     }
 
     return Tenant.fromJson(data);
@@ -210,7 +210,11 @@ class SupabaseRepository {
     if (roomId != null) {
       final remaining = await _client.from('tenants').select('id').eq('room_id', roomId).eq('status', 'active').limit(1);
       if (remaining.isEmpty) {
-        await _client.from('rooms').update({'status': 'void'}).eq('id', roomId);
+        // Check current room status — reserved rooms stay reserved, others go to void
+        final roomData = await _client.from('rooms').select('status').eq('id', roomId).maybeSingle();
+        final currentStatus = roomData?['status'] as String? ?? 'void';
+        final newStatus = currentStatus == 'reserved' ? 'reserved' : 'void';
+        await _client.from('rooms').update({'status': newStatus}).eq('id', roomId);
       }
     }
   }
