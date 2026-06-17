@@ -253,7 +253,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final cellWidth = constraints.maxWidth / 7;
-                final cellHeight = cellWidth * 0.85;
+                final cellHeight = cellWidth * 1.1; // taller to fit tenant name chips
                 final totalRows = ((daysInMonth + startWeekday - 1) / 7).ceil();
                 final gridHeight = totalRows * cellHeight;
 
@@ -317,7 +317,6 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   }
 
   Widget _buildDayCell(int day, bool isToday, bool isSelected, List<Tenant> tenantsDue) {
-    // Determine the dominant color for this day
     Color? bgColor;
     Color borderColor = Colors.transparent;
 
@@ -327,11 +326,9 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
 
     if (tenantsDue.isNotEmpty) {
       final allPaid = tenantsDue.every((t) => t.isPaid);
-      final anyDueToday = isToday;
-
       if (allPaid) {
         bgColor = AppColors.successBg;
-      } else if (anyDueToday) {
+      } else if (isToday) {
         bgColor = AppColors.warningBg;
       } else {
         bgColor = AppColors.dangerBg;
@@ -351,13 +348,15 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           width: isSelected ? 2 : 0,
         ),
       ),
+      padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Day number
           Text(
             '$day',
             style: TextStyle(
-              fontSize: 13,
+              fontSize: 11,
               fontWeight: isToday ? FontWeight.w800 : FontWeight.w500,
               color: isToday
                   ? AppColors.accent
@@ -366,37 +365,54 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                       : AppColors.neutralDark,
             ),
           ),
-          if (tenantsDue.isNotEmpty) ...[
-            const SizedBox(height: 2),
-            _buildTenantDots(tenantsDue),
-          ],
+          // Tenant name chips
+          if (tenantsDue.isNotEmpty)
+            Expanded(
+              child: _buildTenantChips(tenantsDue),
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildTenantDots(List<Tenant> tenants) {
-    final maxDots = 3;
-    final dots = tenants.take(maxDots).map((t) {
-      return Container(
-        width: 5,
-        height: 5,
-        margin: const EdgeInsets.symmetric(horizontal: 0.5),
-        decoration: BoxDecoration(
-          color: t.isPaid ? AppColors.success : AppColors.danger,
-          shape: BoxShape.circle,
-        ),
-      );
-    }).toList();
+  Widget _buildTenantChips(List<Tenant> tenants) {
+    // Show up to 4 tenant name chips, then overflow indicator
+    const maxChips = 4;
+    final visible = tenants.take(maxChips).toList();
+    final overflow = tenants.length - maxChips;
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        ...dots,
-        if (tenants.length > maxDots)
+        ...visible.map((t) {
+          final color = t.isPaid ? AppColors.success : AppColors.danger;
+          // Use first name only to fit in small space
+          final firstWord = t.name.split(' ').first;
+          return Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 1),
+            padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(3),
+            ),
+            child: Text(
+              firstWord,
+              style: TextStyle(
+                fontSize: 7.5,
+                fontWeight: FontWeight.w600,
+                color: color == AppColors.success ? AppColors.successText : AppColors.dangerText,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.clip,
+            ),
+          );
+        }),
+        if (overflow > 0)
           Text(
-            '+${tenants.length - maxDots}',
-            style: const TextStyle(fontSize: 7, color: AppColors.textSecondary),
+            '+$overflow',
+            style: const TextStyle(fontSize: 7, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
           ),
       ],
     );
@@ -426,22 +442,27 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('Error: $e')),
       data: (tenants) {
-        // Find tenants whose due_date falls on the selected day
+        // Find tenants whose due_date falls on the selected day of month
+        // Match by day-of-month only, so someone who moved in on the 22nd
+        // shows up on every 22nd regardless of month/year
         final dueTenants = tenants.where((t) {
           if (t.dueDate == null) return false;
-          return t.dueDate!.year == selectedDate.year &&
-              t.dueDate!.month == selectedDate.month &&
-              t.dueDate!.day == selectedDate.day;
+          return t.dueDate!.day == selectedDate.day;
         }).toList();
 
-        // Also find overdue tenants (past due, not yet paid)
+        // Sort: unpaid first, then paid
+        dueTenants.sort((a, b) {
+          if (a.isPaid != b.isPaid) return a.isPaid ? 1 : -1;
+          return a.name.compareTo(b.name);
+        });
+
+        // Also find overdue tenants (past due, not yet paid) — different day
         final overdueTenants = tenants.where((t) {
           if (t.dueDate == null || t.isPaid) return false;
           return t.dueDate!.isBefore(selectedDate) &&
-              !(t.dueDate!.year == selectedDate.year &&
-                  t.dueDate!.month == selectedDate.month &&
-                  t.dueDate!.day == selectedDate.day);
+              t.dueDate!.day != selectedDate.day;
         }).toList();
+        overdueTenants.sort((a, b) => a.name.compareTo(b.name));
 
         return Container(
           margin: const EdgeInsets.all(12),
