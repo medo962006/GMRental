@@ -136,7 +136,7 @@ class DashboardScreen extends ConsumerWidget {
               return _OverdueCard(
                 tenant: t,
                 roomDisplay: room.displayRoomNumber,
-                monthlyRent: room.monthlyRent,
+                monthlyRent: t.insuranceAmount,
               );
             }),
           ],

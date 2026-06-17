@@ -116,14 +116,8 @@ class SupabaseRepository {
   }
 
   Future<Tenant> addTenant(Tenant tenant) async {
-    // Auto-set insurance to room's monthly rent if not set
-    double insurance = tenant.insuranceAmount;
-    if (insurance == 0 && tenant.roomId != null) {
-      final roomData = await _client.from('rooms').select('monthly_rent').eq('id', tenant.roomId!).maybeSingle();
-      if (roomData != null) {
-        insurance = (roomData['monthly_rent'] as num?)?.toDouble() ?? 0;
-      }
-    }
+    // Use the tenant's insuranceAmount as-is — admin sets it explicitly
+    final double insurance = tenant.insuranceAmount;
 
     // Build insert payload — omit id so Supabase auto-generates it
     final insertData = <String, dynamic>{
@@ -220,25 +214,9 @@ class SupabaseRepository {
   }
 
   Future<void> markTenantPaid(String id) async {
-    // Get current tenant to find due_date
-    final data = await _client.from('tenants').select('due_date').eq('id', id).single();
-    final dueDateStr = data['due_date'] as String?;
-
-    // Advance due_date to next month's payment day (clamp day to last valid day)
-    String? newDue;
-    if (dueDateStr != null) {
-      final due = DateTime.parse(dueDateStr);
-      var nextMonth = due.month + 1;
-      var year = due.year;
-      if (nextMonth > 12) { nextMonth = 1; year++; }
-      final lastDay = DateTime(year, nextMonth + 1, 0).day;
-      final day = due.day > lastDay ? lastDay : due.day;
-      newDue = '$year-${nextMonth.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}';
-    }
-
+    // Simply mark as paid — due_date stays unchanged (admin sets it manually)
     await _client.from('tenants').update({
       'payment_status': 'paid',
-      if (newDue != null) 'due_date': newDue,
     }).eq('id', id);
   }
 
@@ -464,20 +442,13 @@ class SupabaseRepository {
     final now = DateTime.now();
     final monthStart = DateTime(now.year, now.month, 1);
 
-    // Expected: sum of monthlyRent for all occupied rooms
+    // Expected: sum of insuranceAmount for all active tenants
     final totalRentExpected =
-        rooms.where((r) => r.isOccupied).fold(0.0, (sum, r) => sum + r.monthlyRent);
+        tenants.fold(0.0, (sum, t) => sum + t.insuranceAmount);
 
-    // Collected: sum of monthlyRent for paid tenants (payment_status = paid)
-    // These tenants have paid their current cycle rent
+    // Collected: sum of insuranceAmount for paid tenants
     final totalRentCollected =
-        tenants.where((t) => t.isPaid).fold(0.0, (sum, t) {
-          final room = rooms.firstWhere(
-            (r) => r.id == t.roomId,
-            orElse: () => Room(id: 0, roomNumber: '', status: 'void', monthlyRent: 0, reservedAmount: 0),
-          );
-          return sum + room.monthlyRent;
-        });
+        tenants.where((t) => t.isPaid).fold(0.0, (sum, t) => sum + t.insuranceAmount);
 
     // Overdue: sum of monthlyRent for unpaid tenants whose dueDate has passed
     final overdueTenants = tenants.where((t) {
@@ -486,13 +457,7 @@ class SupabaseRepository {
       return t.dueDate!.isBefore(now);
     }).toList();
 
-    final totalRentOverdue = overdueTenants.fold(0.0, (sum, t) {
-      final room = rooms.firstWhere(
-        (r) => r.id == t.roomId,
-        orElse: () => Room(id: 0, roomNumber: '', status: 'void', monthlyRent: 0, reservedAmount: 0),
-      );
-      return sum + room.monthlyRent;
-    });
+    final totalRentOverdue = overdueTenants.fold(0.0, (sum, t) => sum + t.insuranceAmount);
 
     // Unpaid (not yet overdue): expected - collected - overdue
     final totalRentUnpaid = totalRentExpected - totalRentCollected - totalRentOverdue;

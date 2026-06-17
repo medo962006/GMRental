@@ -256,7 +256,7 @@ class _RoomContentState extends ConsumerState<_RoomContent> {
                     DataCell(Text(room.displayRoomNumber.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary))),
                     DataCell(Text(room.floorLabel)),
                     DataCell(_statusBadge(room.status)),
-                    DataCell(Text('${room.monthlyRent.toStringAsFixed(0)} LE', style: const TextStyle(fontWeight: FontWeight.w600))),
+                    DataCell(Text('${t?.insuranceAmount.toStringAsFixed(0) ?? room.monthlyRent.toStringAsFixed(0)} LE', style: const TextStyle(fontWeight: FontWeight.w600))),
                     DataCell(Text(t?.name ?? '—')),
                     DataCell(t != null ? (t.isPaid ? AppBadge.paid() : AppBadge.unpaid()) : const Text('—')),
                     DataCell(Row(mainAxisSize: MainAxisSize.min, children: [
@@ -298,7 +298,7 @@ class _RoomContentState extends ConsumerState<_RoomContent> {
     final repo = ref.read(supabaseRepositoryProvider);
     final nameCtrl = TextEditingController(text: existing?.name ?? '');
     final phoneCtrl = TextEditingController(text: existing?.phone ?? '');
-    final rentCtrl = TextEditingController(text: existing?.insuranceAmount.toString() ?? room.monthlyRent.toString());
+    final rentCtrl = TextEditingController(text: existing?.insuranceAmount.toString() ?? '');
     final dayCtrl = TextEditingController(text: existing?.dueDate?.day.toString() ?? '1');
     String gender = existing?.gender ?? 'male';
 
