@@ -223,17 +223,19 @@ class SupabaseRepository {
     // Get current tenant to find due_date
     final data = await _client.from('tenants').select('due_date').eq('id', id).single();
     final dueDateStr = data['due_date'] as String?;
-    
-    // Advance due_date to next month's payment day
+
+    // Advance due_date to next month's payment day (clamp day to last valid day)
     String? newDue;
     if (dueDateStr != null) {
       final due = DateTime.parse(dueDateStr);
-      final nextMonth = due.month + 1;
-      final year = nextMonth > 12 ? due.year + 1 : due.year;
-      final month = nextMonth > 12 ? 1 : nextMonth;
-      newDue = '$year-${month.toString().padLeft(2, '0')}-${due.day.toString().padLeft(2, '0')}';
+      var nextMonth = due.month + 1;
+      var year = due.year;
+      if (nextMonth > 12) { nextMonth = 1; year++; }
+      final lastDay = DateTime(year, nextMonth + 1, 0).day;
+      final day = due.day > lastDay ? lastDay : due.day;
+      newDue = '$year-${nextMonth.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}';
     }
-    
+
     await _client.from('tenants').update({
       'payment_status': 'paid',
       if (newDue != null) 'due_date': newDue,
@@ -525,7 +527,8 @@ class SupabaseRepository {
   // ════════════════════════════════════════════════════════
 
   /// Auto-update payment_status for all tenants based on due_date.
-  /// If today > due_date → unpaid, else → paid.
+  /// If today > due_date → unpaid (and reset due_date to today so overdue days don't accumulate).
+  /// If today <= due_date → paid (advance due_date to next month).
   /// Call this on app startup and periodically.
   Future<int> autoUpdatePaymentStatus({int? buildingId}) async {
     final tenants = buildingId != null
@@ -533,17 +536,40 @@ class SupabaseRepository {
         : await _client.from('tenants').select().eq('status', 'active').then(
             (data) => (data as List).map((e) => Tenant.fromJson(e)).toList());
     final now = DateTime.now();
+    final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
     int updated = 0;
 
     for (final t in tenants) {
       if (t.dueDate == null) continue;
 
       final isPastDue = t.dueDate!.isBefore(now);
-      final shouldChange = isPastDue ? t.isPaid : t.isUnpaid;
 
-      if (shouldChange) {
+      if (isPastDue && t.isPaid) {
+        // Past due and still marked paid → mark unpaid, reset due_date to today
         await _client.from('tenants').update({
-          'payment_status': isPastDue ? 'unpaid' : 'paid',
+          'payment_status': 'unpaid',
+          'due_date': todayStr,
+        }).eq('id', t.id);
+        updated++;
+      } else if (isPastDue && t.isUnpaid) {
+        // Already unpaid but due_date is stale → reset due_date to today
+        // so overdue count resets from today
+        await _client.from('tenants').update({
+          'due_date': todayStr,
+        }).eq('id', t.id);
+        updated++;
+      } else if (!isPastDue && t.isUnpaid) {
+        // Not past due but marked unpaid → mark paid, advance due_date to next month
+        final due = t.dueDate!;
+        var nextMonth = due.month + 1;
+        var year = due.year;
+        if (nextMonth > 12) { nextMonth = 1; year++; }
+        final lastDay = DateTime(year, nextMonth + 1, 0).day;
+        final day = due.day > lastDay ? lastDay : due.day;
+        final newDue = '$year-${nextMonth.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}';
+        await _client.from('tenants').update({
+          'payment_status': 'paid',
+          'due_date': newDue,
         }).eq('id', t.id);
         updated++;
       }
