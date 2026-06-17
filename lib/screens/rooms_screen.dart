@@ -762,6 +762,9 @@ class _RoomActionsSheetState extends ConsumerState<_RoomActionsSheet> {
         );
       }
       if (mounted) {
+        // Invalidate tenants stream so UI picks up the change immediately
+        ref.invalidate(tenantsStreamProvider(widget.buildingId));
+        ref.invalidate(unpaidTenantsProvider(widget.buildingId));
         widget.onRefresh();
         Navigator.of(widget.rootContext).pop();
       }
