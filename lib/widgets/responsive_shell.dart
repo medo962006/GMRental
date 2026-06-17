@@ -12,6 +12,7 @@ import '../screens/operational_costs_screen.dart';
 import '../screens/whatsapp_screen.dart';
 import '../screens/insurance_screen.dart';
 import '../screens/notifications_screen.dart';
+import '../screens/calendar_screen.dart';
 import '../models/admin_notification.dart';
 
 class ResponsiveShell extends ConsumerWidget {
@@ -26,6 +27,7 @@ class ResponsiveShell extends ConsumerWidget {
     final screens = const <Widget>[
       DashboardScreen(),
       RoomsScreen(),
+      CalendarScreen(),
       MasareefScreen(),
       TasksScreen(),
       OperationalCostsScreen(),
@@ -35,13 +37,14 @@ class ResponsiveShell extends ConsumerWidget {
     ];
 
     final navLabels = const [
-      'Dashboard', 'Rooms', 'Masareef', 'Tasks',
+      'Dashboard', 'Rooms', 'Calendar', 'Masareef', 'Tasks',
       'Op. Costs', 'WhatsApp', 'Ta2meen', 'Alerts',
     ];
 
     final navIcons = const [
       Icons.dashboard,
       Icons.bed,
+      Icons.calendar_month,
       Icons.receipt_long,
       Icons.checklist,
       Icons.trending_up,

@@ -1,5 +1,4 @@
 // lib/main.dart
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -34,26 +33,15 @@ class HostelManagerApp extends ConsumerStatefulWidget {
 }
 
 class _HostelManagerAppState extends ConsumerState<HostelManagerApp> {
-  Timer? _paymentTimer;
-
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       NotificationService.instance.runAllChecks();
-      // Auto-update payment status based on due dates
-      ref.read(supabaseRepositoryProvider).autoUpdatePaymentStatus().catchError((_) => 0);
+      // Auto-update disabled — payment status is manual control
+      // To re-enable: uncomment the line below
+      // ref.read(supabaseRepositoryProvider).autoUpdatePaymentStatus().catchError((_) => 0);
     });
-    // Run auto-update every 6 hours so overdue tenants are caught daily
-    _paymentTimer = Timer.periodic(const Duration(hours: 6), (_) {
-      ref.read(supabaseRepositoryProvider).autoUpdatePaymentStatus().catchError((_) => 0);
-    });
-  }
-
-  @override
-  void dispose() {
-    _paymentTimer?.cancel();
-    super.dispose();
   }
 
   @override

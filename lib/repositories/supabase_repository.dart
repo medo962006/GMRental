@@ -492,9 +492,9 @@ class SupabaseRepository {
   // ════════════════════════════════════════════════════════
 
   /// Auto-update payment_status for all tenants based on due_date.
-  /// If today > due_date → unpaid (and reset due_date to today so overdue days don't accumulate).
-  /// If today <= due_date → paid (advance due_date to next month).
-  /// Call this on app startup and periodically.
+  /// Only resets due_date for already-unpaid tenants (overdue housekeeping).
+  /// Does NOT mark paid or unpaid — that's manual control.
+  /// Call this on app startup.
   Future<int> autoUpdatePaymentStatus({int? buildingId}) async {
     final tenants = buildingId != null
         ? await getActiveTenants(buildingId: buildingId)
@@ -509,32 +509,11 @@ class SupabaseRepository {
 
       final isPastDue = t.dueDate!.isBefore(now);
 
-      if (isPastDue && t.isPaid) {
-        // Past due and still marked paid → mark unpaid, reset due_date to today
-        await _client.from('tenants').update({
-          'payment_status': 'unpaid',
-          'due_date': todayStr,
-        }).eq('id', t.id);
-        updated++;
-      } else if (isPastDue && t.isUnpaid) {
+      if (isPastDue && t.isUnpaid) {
         // Already unpaid but due_date is stale → reset due_date to today
         // so overdue count resets from today
         await _client.from('tenants').update({
           'due_date': todayStr,
-        }).eq('id', t.id);
-        updated++;
-      } else if (!isPastDue && t.isUnpaid) {
-        // Not past due but marked unpaid → mark paid, advance due_date to next month
-        final due = t.dueDate!;
-        var nextMonth = due.month + 1;
-        var year = due.year;
-        if (nextMonth > 12) { nextMonth = 1; year++; }
-        final lastDay = DateTime(year, nextMonth + 1, 0).day;
-        final day = due.day > lastDay ? lastDay : due.day;
-        final newDue = '$year-${nextMonth.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}';
-        await _client.from('tenants').update({
-          'payment_status': 'paid',
-          'due_date': newDue,
         }).eq('id', t.id);
         updated++;
       }
