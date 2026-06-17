@@ -49,6 +49,7 @@ class SupabaseRepository {
       'room_number': room.roomNumber,
       'status': room.status,
       'monthly_rent': room.monthlyRent,
+      'reserved_amount': room.reservedAmount,
       'building_id': room.buildingId,
     }).select().single();
     return Room.fromJson(data);
@@ -59,6 +60,7 @@ class SupabaseRepository {
       'room_number': room.roomNumber,
       'status': room.status,
       'monthly_rent': room.monthlyRent,
+      'reserved_amount': room.reservedAmount,
       'building_id': room.buildingId,
     }).eq('id', room.id).select().single();
     return Room.fromJson(data);
