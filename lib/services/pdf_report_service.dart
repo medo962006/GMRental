@@ -27,10 +27,9 @@ class PdfReportService {
     final unpaidCount = dashboardStats['unpaidTenants'] as int? ?? 0;
 
     double collected = 0, due = 0;
-    final roomMap = {for (var r in rooms) r.id: r.monthlyRent};
     for (final t in tenants) {
       if (!t.isActive) continue;
-      final rent = t.roomId != null ? (roomMap[t.roomId] ?? 0) : 0;
+      final rent = t.insuranceAmount;
       if (t.isPaid) {
         collected += rent;
       } else {

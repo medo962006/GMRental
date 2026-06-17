@@ -81,7 +81,8 @@ class _InsuranceScreenState extends ConsumerState<InsuranceScreen> {
       final room = roomMap[tenant.roomId];
       if (room == null) continue;
 
-      final rent = room.monthlyRent;
+      final rent = tenant.insuranceAmount;
+      if (rent <= 0) continue;
       // Fire and forget — don't block the UI
       repo.createInsuranceLedger(
         tenantId: tenant.id,
