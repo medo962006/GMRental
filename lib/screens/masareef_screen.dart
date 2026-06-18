@@ -1,15 +1,21 @@
 // lib/screens/masareef_screen.dart
 // CRUD screen for managing expenses (Arabic: مصاريف = Masareef).
 // Responsive: desktop shows DataTable, mobile shows card list.
+// Receipt upload: PNG/JPG only, max 20 MB, light compression above 5 MB.
+
+import 'dart:io';
+import 'dart:ui' as ui;
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../config/app_config.dart';
 import '../models/masareef.dart';
 import '../providers/app_providers.dart';
+import '../repositories/supabase_repository.dart';
 import '../services/auth_guard.dart';
-
 
 class MasareefScreen extends ConsumerWidget {
   const MasareefScreen({super.key});
@@ -164,17 +170,13 @@ class MasareefScreen extends ConsumerWidget {
   // ══════════════════════════════════════════════════════
 
   Widget _buildMonthlySummary(BuildContext context, List<Masareef> expenses) {
-    // Group by year-month
     final Map<String, List<Masareef>> grouped = {};
     for (final e in expenses) {
       final key = '${e.dateIncurred.year}-${e.dateIncurred.month.toString().padLeft(2, '0')}';
       grouped.putIfAbsent(key, () => []).add(e);
     }
 
-    // Sort keys descending (most recent first)
     final sortedKeys = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
-
-    // Take top 3 months
     final topMonths = sortedKeys.take(3).toList();
 
     return Padding(
@@ -278,6 +280,7 @@ class MasareefScreen extends ConsumerWidget {
               DataColumn(label: Text('Amount')),
               DataColumn(label: Text('Category')),
               DataColumn(label: Text('Date')),
+              DataColumn(label: Text('Receipt')),
               DataColumn(label: Text('Actions')),
             ],
             rows: expenses.map((expense) {
@@ -293,6 +296,7 @@ class MasareefScreen extends ConsumerWidget {
                   )),
                   DataCell(_buildCategoryBadge(expense.category)),
                   DataCell(Text(_formatDate(expense.dateIncurred))),
+                  DataCell(_buildReceiptThumbnail(context, expense)),
                   DataCell(
                     Row(
                       mainAxisSize: MainAxisSize.min,
@@ -388,6 +392,14 @@ class MasareefScreen extends ConsumerWidget {
                         ),
                       ],
                     ),
+
+                    // Receipt thumbnail
+                    if (expense.receiptUrl != null &&
+                        expense.receiptUrl!.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      _buildReceiptThumbnail(context, expense),
+                    ],
+
                     const SizedBox(height: 12),
 
                     // Action buttons
@@ -418,6 +430,143 @@ class MasareefScreen extends ConsumerWidget {
           );
         },
         childCount: expenses.length,
+      ),
+    );
+  }
+
+  // ══════════════════════════════════════════════════════
+  // RECEIPT THUMBNAIL
+  // ══════════════════════════════════════════════════════
+
+  Widget _buildReceiptThumbnail(BuildContext context, Masareef expense) {
+    if (expense.receiptUrl == null || expense.receiptUrl!.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey[300]!),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.receipt_long, size: 16, color: Colors.grey[500]),
+            const SizedBox(width: 4),
+            Text(
+              'No receipt',
+              style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return GestureDetector(
+      onTap: () => _showReceiptViewer(context, expense),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey[300]!),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Image.network(
+            expense.receiptUrl!,
+            fit: BoxFit.cover,
+            width: 48,
+            height: 48,
+            errorBuilder: (_, __, ___) => Container(
+              color: Colors.grey[100],
+              child: Icon(Icons.broken_image, size: 20, color: Colors.grey[400]),
+            ),
+            loadingBuilder: (_, child, progress) {
+              if (progress == null) return child;
+              return Container(
+                color: Colors.grey[50],
+                child: Center(
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      value: progress.expectedTotalBytes != null
+                          ? progress.cumulativeBytesLoaded /
+                              progress.expectedTotalBytes!
+                          : null,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ══════════════════════════════════════════════════════
+  // RECEIPT VIEWER (full-screen dialog)
+  // ══════════════════════════════════════════════════════
+
+  void _showReceiptViewer(BuildContext context, Masareef expense) {
+    if (expense.receiptUrl == null || expense.receiptUrl!.isEmpty) return;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        insetPadding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Receipt — ${expense.title}',
+                      style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            // Image
+            Flexible(
+              child: InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 4.0,
+                child: Image.network(
+                  expense.receiptUrl!,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.broken_image,
+                            size: 48, color: Colors.grey[400]),
+                        const SizedBox(height: 8),
+                        Text('Failed to load image',
+                            style: TextStyle(color: Colors.grey[600])),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -471,19 +620,25 @@ class MasareefScreen extends ConsumerWidget {
 
   void _showAddEditDialog(BuildContext context, WidgetRef ref,
       {Masareef? expense}) {
-    showDialog(
-      context: context,
-      builder: (ctx) => _MasareefFormDialog(
-        expense: expense,
-        onSave: (Masareef savedExpense) async {
-          // Password gate for add/edit
-          if (!await showPasswordDialog(context, ref)) return;
-          final repo = ref.read(supabaseRepositoryProvider);
-          try {
-            if (expense == null) {
-              await repo.addMasareef(savedExpense);
-            } else {
-              await repo.updateMasareef(savedExpense);
+    // Password gate — must pass before dialog opens
+    showPasswordDialog(context, ref).then((authenticated) {
+      if (!authenticated) return;
+      showDialog(
+        context: context,
+        builder: (ctx) => _MasareefFormDialog(
+          expense: expense,
+          repo: ref.read(supabaseRepositoryProvider),
+          onSave: (Masareef savedExpense, String? error) async {
+            if (error != null) {
+              if (ctx.mounted) {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  SnackBar(
+                    content: Text('Error: $error'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+              return;
             }
             ref.invalidate(masareefStreamProvider);
             if (ctx.mounted) {
@@ -497,19 +652,10 @@ class MasareefScreen extends ConsumerWidget {
                 ),
               );
             }
-          } catch (e) {
-            if (ctx.mounted) {
-              ScaffoldMessenger.of(ctx).showSnackBar(
-                SnackBar(
-                  content: Text('Error: $e'),
-                  backgroundColor: Colors.red,
-                ),
-              );
-            }
-          }
-        },
-      ),
-    );
+          },
+        ),
+      );
+    });
   }
 
   // ══════════════════════════════════════════════════════
@@ -535,6 +681,15 @@ class MasareefScreen extends ConsumerWidget {
               if (!await showPasswordDialog(context, ref)) return;
               final repo = ref.read(supabaseRepositoryProvider);
               try {
+                // Delete receipt from storage first
+                if (expense.receiptUrl != null &&
+                    expense.receiptUrl!.isNotEmpty) {
+                  try {
+                    await repo.deleteReceipt(expense.id);
+                  } catch (_) {
+                    // Continue even if receipt deletion fails
+                  }
+                }
                 await repo.deleteMasareef(expense.id);
                 ref.invalidate(masareefStreamProvider);
                 if (ctx.mounted) Navigator.of(ctx).pop();
@@ -594,9 +749,14 @@ class MasareefScreen extends ConsumerWidget {
 
 class _MasareefFormDialog extends StatefulWidget {
   final Masareef? expense;
-  final Function(Masareef) onSave;
+  final void Function(Masareef savedExpense, String? error) onSave;
+  final SupabaseRepository repo;
 
-  const _MasareefFormDialog({this.expense, required this.onSave});
+  const _MasareefFormDialog({
+    this.expense,
+    required this.onSave,
+    required this.repo,
+  });
 
   @override
   State<_MasareefFormDialog> createState() => _MasareefFormDialogState();
@@ -610,6 +770,14 @@ class _MasareefFormDialogState extends State<_MasareefFormDialog> {
   String _selectedCategory = 'general';
   late DateTime _selectedDate;
 
+  // Receipt state
+  Uint8List? _receiptBytes;
+  String? _receiptExtension;
+  String? _existingReceiptUrl;
+  bool _removeReceipt = false;
+  bool _isUploading = false;
+  double _uploadProgress = 0;
+
   static const List<String> _categories = [
     'general',
     'utilities',
@@ -618,6 +786,11 @@ class _MasareefFormDialogState extends State<_MasareefFormDialog> {
     'cleaning',
     'other',
   ];
+
+  // 20 MB in bytes
+  static const int _maxFileSize = 20 * 1024 * 1024;
+  // 5 MB compression threshold
+  static const int _compressionThreshold = 5 * 1024 * 1024;
 
   @override
   void initState() {
@@ -630,6 +803,7 @@ class _MasareefFormDialogState extends State<_MasareefFormDialog> {
             : '');
     _selectedCategory = widget.expense?.category ?? 'general';
     _selectedDate = widget.expense?.dateIncurred ?? DateTime.now();
+    _existingReceiptUrl = widget.expense?.receiptUrl;
   }
 
   @override
@@ -639,6 +813,220 @@ class _MasareefFormDialogState extends State<_MasareefFormDialog> {
     super.dispose();
   }
 
+  // ── Image picking ──────────────────────────────────
+
+  Future<void> _pickReceipt() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 2048,
+      maxHeight: 2048,
+      imageQuality: 85,
+    );
+
+    if (picked == null) return;
+
+    final bytes = await picked.readAsBytes();
+    final ext = picked.path.split('.').last.toLowerCase();
+
+    // Validate type
+    if (ext != 'png' && ext != 'jpg' && ext != 'jpeg') {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Only PNG and JPG files are allowed.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
+
+    // Validate size
+    if (bytes.length > _maxFileSize) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'File too large (${_formatBytes(bytes.length)}). '
+              'Maximum: 20 MB.',
+            ),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
+
+    setState(() {
+      _receiptBytes = bytes;
+      _receiptExtension = ext == 'jpeg' ? 'jpg' : ext;
+      _removeReceipt = false;
+    });
+  }
+
+  Future<void> _pickReceiptFromCamera() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.camera,
+      maxWidth: 2048,
+      maxHeight: 2048,
+      imageQuality: 85,
+    );
+
+    if (picked == null) return;
+
+    final bytes = await picked.readAsBytes();
+    final ext = 'jpg'; // Camera always produces JPEG
+
+    if (bytes.length > _maxFileSize) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'File too large (${_formatBytes(bytes.length)}). '
+              'Maximum: 20 MB.',
+            ),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
+
+    setState(() {
+      _receiptBytes = bytes;
+      _receiptExtension = ext;
+      _removeReceipt = false;
+    });
+  }
+
+  void _removeReceiptImage() {
+    setState(() {
+      _receiptBytes = null;
+      _receiptExtension = null;
+      _removeReceipt = _existingReceiptUrl != null &&
+          _existingReceiptUrl!.isNotEmpty;
+    });
+  }
+
+  // ── Save with receipt upload ───────────────────────
+
+  Future<void> _saveWithReceipt() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _isUploading = true;
+      _uploadProgress = 0;
+    });
+
+    try {
+      final repo = widget.repo;
+
+      // Build the expense object
+      final expense = Masareef(
+        id: widget.expense?.id ?? '',
+        title: _titleController.text.trim(),
+        amount: double.parse(_amountController.text.trim()),
+        category: _selectedCategory,
+        dateIncurred: _selectedDate,
+        createdAt: widget.expense?.createdAt ?? DateTime.now(),
+        receiptUrl: _removeReceipt ? null : (_existingReceiptUrl ?? ''),
+      );
+
+      // First save the expense to get an ID
+      Masareef savedExpense;
+      if (widget.expense == null) {
+        savedExpense = await repo.addMasareef(expense);
+      } else {
+        savedExpense = await repo.updateMasareef(expense);
+      }
+
+      setState(() => _uploadProgress = 0.3);
+
+      // Handle receipt upload
+      if (_receiptBytes != null && _receiptExtension != null) {
+        // Compress if > 5 MB
+        var bytes = _receiptBytes!;
+        if (bytes.length > _compressionThreshold) {
+          setState(() => _uploadProgress = 0.4);
+          bytes = await _compressImage(bytes);
+        }
+
+        setState(() => _uploadProgress = 0.6);
+
+        // Upload to Supabase Storage
+        final receiptUrl = await repo.uploadReceipt(
+          expenseId: savedExpense.id,
+          fileBytes: bytes,
+          fileExtension: _receiptExtension!,
+        );
+
+        setState(() => _uploadProgress = 0.9);
+
+        // Update expense with receipt URL
+        final updated = savedExpense.copyWith(receiptUrl: receiptUrl);
+        await repo.updateMasareef(updated);
+        savedExpense = updated;
+      } else if (_removeReceipt && widget.expense != null) {
+        // Delete old receipt from storage
+        try {
+          await repo.deleteReceipt(widget.expense!.id);
+        } catch (_) {
+          // Ignore storage deletion errors
+        }
+      }
+
+      setState(() => _uploadProgress = 1.0);
+
+      // Notify parent
+      if (mounted) {
+        widget.onSave(savedExpense, null);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isUploading = false);
+        widget.onSave(widget.expense ?? Masareef(
+          id: '', title: '', amount: 0, dateIncurred: DateTime.now(),
+          createdAt: DateTime.now(),
+        ), e.toString());
+      }
+    }
+  }
+
+  /// Light image compression — downscale large images to reduce file size.
+  /// Uses Flutter's image codec to resize to max 1600px.
+  Future<Uint8List> _compressImage(Uint8List bytes) async {
+    try {
+      final codec = await ui.instantiateImageCodec(
+        bytes,
+        targetWidth: 1600,
+        targetHeight: 1600,
+      );
+      final frame = await codec.getNextFrame();
+      final byteData =
+          await frame.image.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData != null) {
+        final compressed = byteData.buffer.asUint8List();
+        // Only use compressed if it's actually smaller
+        if (compressed.length < bytes.length) {
+          return compressed;
+        }
+      }
+    } catch (_) {
+      // Fall through to original bytes
+    }
+    return bytes;
+  }
+
+  String _formatBytes(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
+  // ── Build ──────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.expense != null;
@@ -646,7 +1034,7 @@ class _MasareefFormDialogState extends State<_MasareefFormDialog> {
     return AlertDialog(
       title: Text(isEditing ? 'Edit Expense' : 'Add New Expense'),
       content: SizedBox(
-        width: 400,
+        width: 420,
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
@@ -756,6 +1144,10 @@ class _MasareefFormDialogState extends State<_MasareefFormDialog> {
                     ),
                   ),
                 ),
+                const SizedBox(height: 20),
+
+                // ── Receipt Upload Section ──────────────
+                _buildReceiptSection(),
               ],
             ),
           ),
@@ -763,26 +1155,301 @@ class _MasareefFormDialogState extends State<_MasareefFormDialog> {
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: _isUploading ? null : () => Navigator.of(context).pop(),
           child: const Text('Cancel'),
         ),
         FilledButton(
-          onPressed: () {
-            if (_formKey.currentState!.validate()) {
-              final expense = Masareef(
-                id: widget.expense?.id ?? '',
-                title: _titleController.text.trim(),
-                amount: double.parse(_amountController.text.trim()),
-                category: _selectedCategory,
-                dateIncurred: _selectedDate,
-                createdAt: widget.expense?.createdAt ?? DateTime.now(),
-              );
-              widget.onSave(expense);
-            }
-          },
-          child: Text(isEditing ? 'Update' : 'Add'),
+          onPressed: _isUploading ? null : _saveWithReceipt,
+          child: _isUploading
+              ? Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        value: _uploadProgress > 0 ? _uploadProgress : null,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(_uploadProgress < 0.4
+                        ? 'Saving...'
+                        : _uploadProgress < 0.7
+                            ? 'Compressing...'
+                            : _uploadProgress < 1.0
+                                ? 'Uploading...'
+                                : 'Done'),
+                  ],
+                )
+              : Text(isEditing ? 'Update' : 'Add'),
         ),
       ],
+    );
+  }
+
+  // ── Receipt upload UI ──────────────────────────────
+
+  Widget _buildReceiptSection() {
+    final hasNewImage = _receiptBytes != null;
+    final hasExisting = _existingReceiptUrl != null &&
+        _existingReceiptUrl!.isNotEmpty &&
+        !_removeReceipt;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Section header
+          Row(
+            children: [
+              Icon(Icons.receipt_long, size: 20, color: Colors.grey[700]),
+              const SizedBox(width: 8),
+              Text(
+                'Receipt Image',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey[800],
+                  fontSize: 14,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                'PNG/JPG • Max 20 MB',
+                style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Existing receipt preview
+          if (hasExisting && !hasNewImage) ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: GestureDetector(
+                onTap: () => _showReceiptPreview(context),
+                child: Container(
+                  height: 120,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey[300]!),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Image.network(
+                    _existingReceiptUrl!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      color: Colors.grey[100],
+                      child: Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.broken_image,
+                                size: 32, color: Colors.grey[400]),
+                            const SizedBox(height: 4),
+                            Text('Failed to load',
+                                style: TextStyle(
+                                    fontSize: 12, color: Colors.grey[500])),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _pickReceipt,
+                    icon: const Icon(Icons.photo_library, size: 18),
+                    label: const Text('Replace'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _removeReceiptImage,
+                    icon: const Icon(Icons.delete_outline,
+                        size: 18, color: Colors.red),
+                    label: const Text('Remove',
+                        style: TextStyle(color: Colors.red)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+
+          // New image preview
+          if (hasNewImage) ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                height: 120,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.blue[300]!),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Image.memory(
+                  _receiptBytes!,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Icon(Icons.info_outline, size: 14, color: Colors.grey[600]),
+                const SizedBox(width: 4),
+                Text(
+                  '${_receiptExtension!.toUpperCase()} • ${_formatBytes(_receiptBytes!.length)}',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+                if (_receiptBytes!.length > _compressionThreshold) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.amber[50],
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: Colors.amber[300]!),
+                    ),
+                    child: Text(
+                      'Will compress',
+                      style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.amber[800],
+                          fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _pickReceipt,
+                    icon: const Icon(Icons.photo_library, size: 18),
+                    label: const Text('Change'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _removeReceiptImage,
+                    icon: const Icon(Icons.delete_outline,
+                        size: 18, color: Colors.red),
+                    label: const Text('Remove',
+                        style: TextStyle(color: Colors.red)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+
+          // No receipt — show upload buttons
+          if (!hasExisting && !hasNewImage) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _pickReceipt,
+                    icon: const Icon(Icons.photo_library, size: 18),
+                    label: const Text('Gallery'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _pickReceiptFromCamera,
+                    icon: const Icon(Icons.camera_alt, size: 18),
+                    label: const Text('Camera'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  void _showReceiptPreview(BuildContext context) {
+    if (_existingReceiptUrl == null || _existingReceiptUrl!.isEmpty) return;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        insetPadding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Receipt Preview',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Flexible(
+              child: InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 4.0,
+                child: Image.network(
+                  _existingReceiptUrl!,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.broken_image,
+                            size: 48, color: Colors.grey[400]),
+                        const SizedBox(height: 8),
+                        Text('Failed to load image',
+                            style: TextStyle(color: Colors.grey[600])),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

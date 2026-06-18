@@ -1,4 +1,6 @@
 // lib/repositories/supabase_repository.dart
+import 'dart:typed_data';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/room.dart';
 import '../models/tenant.dart';
@@ -274,6 +276,107 @@ class SupabaseRepository {
 
   Future<void> deleteMasareef(String id) async {
     await _client.from('masareef').delete().eq('id', id);
+  }
+
+  // ════════════════════════════════════════════════════════
+  // RECEIPT STORAGE (Supabase Storage — free tier: 1 GB)
+  // ════════════════════════════════════════════════════════
+
+  static const String _receiptBucket = 'receipts';
+  static const int _maxFileSizeBytes = 20 * 1024 * 1024; // 20 MB
+  static const int _compressionThresholdBytes = 5 * 1024 * 1024; // 5 MB
+
+  /// Validates file size (max 20 MB). Throws [Exception] if exceeded.
+  void validateReceiptFile(int fileSizeBytes, String extension) {
+    if (fileSizeBytes > _maxFileSizeBytes) {
+      throw Exception(
+        'File too large (${_formatBytes(fileSizeBytes)}). '
+        'Maximum allowed: ${_formatBytes(_maxFileSizeBytes)}.',
+      );
+    }
+    final lower = extension.toLowerCase();
+    if (lower != 'png' && lower != 'jpg' && lower != 'jpeg') {
+      throw Exception('Only PNG and JPG files are allowed. Got: $extension');
+    }
+  }
+
+  /// Compresses image bytes if above threshold.
+  /// Returns compressed bytes and whether compression was applied.
+  Future<({List<int> bytes, bool compressed, int originalSize, int finalSize})>
+      compressIfNeeded(List<int> bytes, String extension) async {
+    final originalSize = bytes.length;
+
+    // Only compress images above threshold
+    if (originalSize <= _compressionThresholdBytes) {
+      return (bytes: bytes, compressed: false, originalSize: originalSize, finalSize: originalSize);
+    }
+
+    // Light compression: use Flutter's built-in image decoding/encoding
+    // We import the compression logic at the service level to keep repo clean
+    // For now, return as-is; the service layer handles actual compression
+    return (bytes: bytes, compressed: false, originalSize: originalSize, finalSize: originalSize);
+  }
+
+  /// Uploads a receipt image to Supabase Storage.
+  /// Returns the public URL of the uploaded file.
+  Future<String> uploadReceipt({
+    required String expenseId,
+    required List<int> fileBytes,
+    required String fileExtension,
+  }) async {
+    validateReceiptFile(fileBytes.length, fileExtension);
+
+    final ext = fileExtension.toLowerCase() == 'jpeg' ? 'jpg' : fileExtension.toLowerCase();
+    final fileName = '$expenseId.$ext';
+    final filePath = fileName;
+
+    await _client.storage.from(_receiptBucket).uploadBinary(
+      filePath,
+      Uint8List.fromList(fileBytes),
+      fileOptions: FileOptions(
+        contentType: ext == 'png' ? 'image/png' : 'image/jpeg',
+        upsert: true,
+      ),
+    );
+
+    final publicUrl = _client.storage.from(_receiptBucket).getPublicUrl(filePath);
+    return publicUrl;
+  }
+
+  /// Deletes a receipt from Supabase Storage.
+  Future<void> deleteReceipt(String expenseId) async {
+    // Try both extensions
+    final files = <String>[];
+    for (final ext in ['png', 'jpg']) {
+      files.add('$expenseId.$ext');
+    }
+    try {
+      await _client.storage.from(_receiptBucket).remove(files);
+    } catch (_) {
+      // File might not exist — that's fine
+    }
+  }
+
+  /// Extracts the storage path from a receipt URL for the given expense.
+  /// Returns the likely file path in storage.
+  String getReceiptStoragePath(String expenseId, String? currentUrl) {
+    if (currentUrl != null && currentUrl.isNotEmpty) {
+      // Extract extension from URL
+      final uri = Uri.parse(currentUrl);
+      final path = uri.pathSegments.last;
+      final dotIdx = path.lastIndexOf('.');
+      if (dotIdx != -1) {
+        final ext = path.substring(dotIdx + 1);
+        return '$expenseId.$ext';
+      }
+    }
+    return '$expenseId.jpg'; // default
+  }
+
+  static String _formatBytes(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
   // ════════════════════════════════════════════════════════
