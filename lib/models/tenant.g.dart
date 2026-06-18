@@ -15,7 +15,7 @@ Tenant _$TenantFromJson(Map<String, dynamic> json) => Tenant(
   status: json['status'] as String? ?? 'active',
   insuranceAmount: (json['insurance_amount'] as num?)?.toDouble() ?? 0.0,
   insuranceReturned: json['insurance_returned'] as bool? ?? false,
-  paymentStatus: json['payment_status'] as String? ?? 'unpaid',
+  paymentStatus: json['payment_status'] as String? ?? 'paid',
   dueDate: json['due_date'] == null
       ? null
       : DateTime.parse(json['due_date'] as String),

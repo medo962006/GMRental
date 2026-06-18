@@ -8,8 +8,11 @@ import '../models/task_routine.dart';
 import '../models/operational_cost.dart';
 import '../models/whatsapp_log.dart';
 import '../models/insurance_ledger.dart';
+import '../models/insurance_transaction.dart';
 import '../models/admin_notification.dart';
 import '../models/changelog_entry.dart';
+import '../models/device_code.dart';
+import '../models/reception_history.dart';
 
 // ── Repository ──────────────────────────────────────
 
@@ -91,6 +94,15 @@ final whatsAppLogsStreamProvider = StreamProvider<List<WhatsAppLog>>((ref) {
 
 final whatsAppLogsFutureProvider = FutureProvider<List<WhatsAppLog>>((ref) {
   return ref.watch(supabaseRepositoryProvider).getWhatsAppLogs();
+});
+
+// ── Reception History ───────────────────────────────
+
+final receptionHistoryStreamProvider =
+    StreamProvider.family<List<ReceptionHistory>, int>((ref, buildingId) {
+  return ref
+      .watch(supabaseRepositoryProvider)
+      .watchReceptionHistory(buildingId: buildingId);
 });
 
 // ── Dashboard ───────────────────────────────────────

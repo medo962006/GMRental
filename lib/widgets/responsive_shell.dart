@@ -13,6 +13,7 @@ import '../screens/whatsapp_screen.dart';
 import '../screens/insurance_screen.dart';
 import '../screens/notifications_screen.dart';
 import '../screens/calendar_screen.dart';
+import '../screens/reception_history_screen.dart';
 import '../models/admin_notification.dart';
 
 class ResponsiveShell extends ConsumerWidget {
@@ -28,6 +29,7 @@ class ResponsiveShell extends ConsumerWidget {
       DashboardScreen(),
       RoomsScreen(),
       CalendarScreen(),
+      ReceptionHistoryScreen(),
       MasareefScreen(),
       TasksScreen(),
       OperationalCostsScreen(),
@@ -37,7 +39,7 @@ class ResponsiveShell extends ConsumerWidget {
     ];
 
     final navLabels = const [
-      'Dashboard', 'Rooms', 'Calendar', 'Masareef', 'Tasks',
+      'Dashboard', 'Rooms', 'Calendar', 'History', 'Masareef', 'Tasks',
       'Op. Costs', 'WhatsApp', 'Ta2meen', 'Alerts',
     ];
 
@@ -45,6 +47,7 @@ class ResponsiveShell extends ConsumerWidget {
       Icons.dashboard,
       Icons.bed,
       Icons.calendar_month,
+      Icons.history,
       Icons.receipt_long,
       Icons.checklist,
       Icons.trending_up,
