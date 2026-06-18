@@ -13,6 +13,7 @@ Masareef _$MasareefFromJson(Map<String, dynamic> json) => Masareef(
   category: json['category'] as String? ?? 'general',
   dateIncurred: DateTime.parse(json['date_incurred'] as String),
   createdAt: DateTime.parse(json['created_at'] as String),
+  receiptUrl: json['receipt_url'] as String?,
 );
 
 Map<String, dynamic> _$MasareefToJson(Masareef instance) => <String, dynamic>{
@@ -22,4 +23,5 @@ Map<String, dynamic> _$MasareefToJson(Masareef instance) => <String, dynamic>{
   'category': instance.category,
   'date_incurred': instance.dateIncurred.toIso8601String(),
   'created_at': instance.createdAt.toIso8601String(),
+  'receipt_url': instance.receiptUrl,
 };

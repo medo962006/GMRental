@@ -13,6 +13,8 @@ class Masareef {
   final DateTime dateIncurred;
   @JsonKey(name: 'created_at')
   final DateTime createdAt;
+  @JsonKey(name: 'receipt_url')
+  final String? receiptUrl;
 
   const Masareef({
     required this.id,
@@ -21,6 +23,7 @@ class Masareef {
     this.category = 'general',
     required this.dateIncurred,
     required this.createdAt,
+    this.receiptUrl,
   });
 
   factory Masareef.fromJson(Map<String, dynamic> json) => _$MasareefFromJson(json);
@@ -33,6 +36,7 @@ class Masareef {
     String? category,
     DateTime? dateIncurred,
     DateTime? createdAt,
+    String? receiptUrl,
   }) {
     return Masareef(
       id: id ?? this.id,
@@ -41,6 +45,7 @@ class Masareef {
       category: category ?? this.category,
       dateIncurred: dateIncurred ?? this.dateIncurred,
       createdAt: createdAt ?? this.createdAt,
+      receiptUrl: receiptUrl ?? this.receiptUrl,
     );
   }
 }
