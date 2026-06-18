@@ -13,6 +13,7 @@ import '../models/insurance_transaction.dart';
 import '../models/admin_notification.dart';
 import '../models/changelog_entry.dart';
 import '../models/device_code.dart';
+import '../models/reception_history.dart';
 
 class SupabaseRepository {
   final SupabaseClient _client = Supabase.instance.client;
@@ -138,6 +139,18 @@ class SupabaseRepository {
 
     final data = await _client.from('tenants').insert(insertData).select().single();
 
+    // Auto-sync: add new tenant to reception history
+    try {
+      await autoAddNewTenant(
+        name: tenant.name,
+        buildingId: tenant.buildingId,
+        roomNumber: tenant.roomId?.toString(),
+        phone: tenant.phone,
+      );
+    } catch (_) {
+      // Silently fail — history sync is non-critical
+    }
+
     // Auto-set room to occupied when tenant is assigned
     if (tenant.roomId != null) {
       await _client.from('rooms').update({
@@ -196,11 +209,32 @@ class SupabaseRepository {
   }
 
   Future<void> deleteTenant(String id) async {
-    // Get tenant info before deletion to check room status
-    final tenantData = await _client.from('tenants').select('room_id').eq('id', id).maybeSingle();
+    // Get tenant info before deletion for auto-sync to history
+    final tenantData = await _client
+        .from('tenants')
+        .select('room_id, name, building_id, phone')
+        .eq('id', id)
+        .maybeSingle();
     final roomId = tenantData?['room_id'] as int?;
+    final tenantName = tenantData?['name'] as String? ?? '';
+    final tenantBuildingId = tenantData?['building_id'] as int? ?? 1;
+    final tenantPhone = tenantData?['phone'] as String? ?? '';
 
     await _client.from('tenants').delete().eq('id', id);
+
+    // Auto-sync: add removed tenant to reception history
+    if (tenantName.isNotEmpty) {
+      try {
+        await autoAddToHistory(
+          name: tenantName,
+          buildingId: tenantBuildingId,
+          roomNumber: roomId?.toString(),
+          phone: tenantPhone,
+        );
+      } catch (_) {
+        // Silently fail — history sync is non-critical
+      }
+    }
 
     // If tenant had a room, check if any other active tenants remain
     if (roomId != null) {
@@ -904,5 +938,116 @@ class SupabaseRepository {
         .select()
         .order('created_at', ascending: false);
     return (data as List).map((e) => DeviceCode.fromJson(e)).toList();
+  }
+
+  // ════════════════════════════════════════════════════════
+  // RECEPTION HISTORY
+  // ════════════════════════════════════════════════════════
+
+  Stream<List<ReceptionHistory>> watchReceptionHistory({int? buildingId}) {
+    final query = _client
+        .from('reception_history')
+        .stream(primaryKey: ['id']);
+    return query.order('created_at', ascending: false).map((data) {
+      final list = data.map((e) => ReceptionHistory.fromJson(e)).toList();
+      if (buildingId != null) {
+        return list.where((r) => r.buildingId == buildingId).toList();
+      }
+      return list;
+    });
+  }
+
+  Future<List<ReceptionHistory>> getReceptionHistory({int? buildingId}) async {
+    final data = await _client
+        .from('reception_history')
+        .select()
+        .order('created_at', ascending: false);
+    final list = (data as List).map((e) => ReceptionHistory.fromJson(e)).toList();
+    if (buildingId != null) {
+      return list.where((r) => r.buildingId == buildingId).toList();
+    }
+    return list;
+  }
+
+  Future<ReceptionHistory> addReceptionHistory(ReceptionHistory entry) async {
+    final data = await _client.from('reception_history').insert({
+      'name': entry.name,
+      'phone': entry.phone,
+      'nationality': entry.nationality,
+      'building_id': entry.buildingId,
+      'room_number': entry.roomNumber,
+      'move_in_date': entry.moveInDate?.toIso8601String().split('T').first,
+      'monthly_rent': entry.monthlyRent,
+      'insurance_amount': entry.insuranceAmount,
+      'lease_duration': entry.leaseDuration,
+      'amount_paid_upfront': entry.amountPaidUpfront,
+      'remaining_amount': entry.remainingAmount,
+      'payment_method': entry.paymentMethod,
+      'lease_status': entry.leaseStatus,
+      'notes': entry.notes,
+    }).select().single();
+    return ReceptionHistory.fromJson(data);
+  }
+
+  Future<ReceptionHistory> updateReceptionHistory(ReceptionHistory entry) async {
+    final data = await _client.from('reception_history').update({
+      'name': entry.name,
+      'phone': entry.phone,
+      'nationality': entry.nationality,
+      'building_id': entry.buildingId,
+      'room_number': entry.roomNumber,
+      'move_in_date': entry.moveInDate?.toIso8601String().split('T').first,
+      'monthly_rent': entry.monthlyRent,
+      'insurance_amount': entry.insuranceAmount,
+      'lease_duration': entry.leaseDuration,
+      'amount_paid_upfront': entry.amountPaidUpfront,
+      'remaining_amount': entry.remainingAmount,
+      'payment_method': entry.paymentMethod,
+      'lease_status': entry.leaseStatus,
+      'notes': entry.notes,
+      'updated_at': DateTime.now().toIso8601String(),
+    }).eq('id', entry.id).select().single();
+    return ReceptionHistory.fromJson(data);
+  }
+
+  Future<void> deleteReceptionHistory(String id) async {
+    await _client.from('reception_history').delete().eq('id', id);
+  }
+
+  /// Auto-sync: when a tenant is deleted from a building, add them to reception_history.
+  /// Called from deleteTenant in the rooms screen actions.
+  Future<void> autoAddToHistory({
+    required String name,
+    required int buildingId,
+    String? roomNumber,
+    String? phone,
+  }) async {
+    await _client.from('reception_history').insert({
+      'name': name,
+      'phone': phone ?? '',
+      'building_id': buildingId,
+      'room_number': roomNumber ?? '',
+      'move_in_date': DateTime.now().toIso8601String().split('T').first,
+      'lease_status': 'removed',
+      'notes': 'Auto-added on tenant removal',
+    });
+  }
+
+  /// Auto-sync: when a new tenant is added, add them to reception_history.
+  Future<void> autoAddNewTenant({
+    required String name,
+    required int buildingId,
+    String? roomNumber,
+    String? phone,
+  }) async {
+    await _client.from('reception_history').insert({
+      'name': name,
+      'phone': phone ?? '',
+      'building_id': buildingId,
+      'room_number': roomNumber ?? '',
+      'move_in_date': DateTime.now().toIso8601String().split('T').first,
+      'lease_status': 'ساري',
+      'notes': 'Auto-added on tenant creation',
+    });
   }
 }
