@@ -1,0 +1,20 @@
+@echo off
+"C:\\Users\\ahmed\\AppData\\Local\\Android\\Sdk\\cmake\\3.22.1\\bin\\cmake.exe" ^
+  "-HC:\\Users\\ahmed\\FlutterSDK\\flutter\\packages\\flutter_tools\\gradle\\src\\main\\scripts" ^
+  "-DCMAKE_SYSTEM_NAME=Android" ^
+  "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" ^
+  "-DCMAKE_SYSTEM_VERSION=24" ^
+  "-DANDROID_PLATFORM=android-24" ^
+  "-DANDROID_ABI=x86_64" ^
+  "-DCMAKE_ANDROID_ARCH_ABI=x86_64" ^
+  "-DANDROID_NDK=C:\\Users\\ahmed\\AppData\\Local\\Android\\sdk\\ndk\\25.2.9519653" ^
+  "-DCMAKE_ANDROID_NDK=C:\\Users\\ahmed\\AppData\\Local\\Android\\sdk\\ndk\\25.2.9519653" ^
+  "-DCMAKE_TOOLCHAIN_FILE=C:\\Users\\ahmed\\AppData\\Local\\Android\\sdk\\ndk\\25.2.9519653\\build\\cmake\\android.toolchain.cmake" ^
+  "-DCMAKE_MAKE_PROGRAM=C:\\Users\\ahmed\\AppData\\Local\\Android\\Sdk\\cmake\\3.22.1\\bin\\ninja.exe" ^
+  "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=C:\\Users\\ahmed\\GMRental\\hostel_management\\build\\app\\intermediates\\cxx\\release\\2e5p0z3c\\obj\\x86_64" ^
+  "-DCMAKE_RUNTIME_OUTPUT_DIRECTORY=C:\\Users\\ahmed\\GMRental\\hostel_management\\build\\app\\intermediates\\cxx\\release\\2e5p0z3c\\obj\\x86_64" ^
+  "-BC:\\Users\\ahmed\\GMRental\\hostel_management\\build\\.cxx\\release\\2e5p0z3c\\x86_64" ^
+  -GNinja ^
+  -Wno-dev ^
+  --no-warn-unused-cli ^
+  "-DCMAKE_BUILD_TYPE=release"

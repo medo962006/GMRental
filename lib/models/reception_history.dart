@@ -15,8 +15,6 @@ class ReceptionHistory {
   final String roomNumber;
   @JsonKey(name: 'move_in_date')
   final DateTime? moveInDate;
-  @JsonKey(name: 'monthly_rent')
-  final double monthlyRent;
   @JsonKey(name: 'insurance_amount')
   final double insuranceAmount;
   @JsonKey(name: 'lease_duration')
@@ -43,7 +41,6 @@ class ReceptionHistory {
     required this.buildingId,
     this.roomNumber = '',
     this.moveInDate,
-    this.monthlyRent = 0,
     this.insuranceAmount = 0,
     this.leaseDuration = '',
     this.amountPaidUpfront = 0,
@@ -67,7 +64,6 @@ class ReceptionHistory {
     int? buildingId,
     String? roomNumber,
     DateTime? moveInDate,
-    double? monthlyRent,
     double? insuranceAmount,
     String? leaseDuration,
     double? amountPaidUpfront,
@@ -86,7 +82,6 @@ class ReceptionHistory {
       buildingId: buildingId ?? this.buildingId,
       roomNumber: roomNumber ?? this.roomNumber,
       moveInDate: moveInDate ?? this.moveInDate,
-      monthlyRent: monthlyRent ?? this.monthlyRent,
       insuranceAmount: insuranceAmount ?? this.insuranceAmount,
       leaseDuration: leaseDuration ?? this.leaseDuration,
       amountPaidUpfront: amountPaidUpfront ?? this.amountPaidUpfront,

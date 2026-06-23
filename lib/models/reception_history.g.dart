@@ -12,16 +12,14 @@ ReceptionHistory _$ReceptionHistoryFromJson(Map<String, dynamic> json) =>
       name: json['name'] as String,
       phone: json['phone'] as String? ?? '',
       nationality: json['nationality'] as String? ?? '',
-      buildingId: json['building_id'] as int,
+      buildingId: (json['building_id'] as num).toInt(),
       roomNumber: json['room_number'] as String? ?? '',
       moveInDate: json['move_in_date'] == null
           ? null
           : DateTime.parse(json['move_in_date'] as String),
-      monthlyRent: (json['monthly_rent'] as num?)?.toDouble() ?? 0,
       insuranceAmount: (json['insurance_amount'] as num?)?.toDouble() ?? 0,
       leaseDuration: json['lease_duration'] as String? ?? '',
-      amountPaidUpfront:
-          (json['amount_paid_upfront'] as num?)?.toDouble() ?? 0,
+      amountPaidUpfront: (json['amount_paid_upfront'] as num?)?.toDouble() ?? 0,
       remainingAmount: (json['remaining_amount'] as num?)?.toDouble() ?? 0,
       paymentMethod: json['payment_method'] as String? ?? '',
       leaseStatus: json['lease_status'] as String? ?? '',
@@ -38,8 +36,7 @@ Map<String, dynamic> _$ReceptionHistoryToJson(ReceptionHistory instance) =>
       'nationality': instance.nationality,
       'building_id': instance.buildingId,
       'room_number': instance.roomNumber,
-      'move_in_date': instance.moveInDate?.toIso8601String().split('T').first,
-      'monthly_rent': instance.monthlyRent,
+      'move_in_date': instance.moveInDate?.toIso8601String(),
       'insurance_amount': instance.insuranceAmount,
       'lease_duration': instance.leaseDuration,
       'amount_paid_upfront': instance.amountPaidUpfront,

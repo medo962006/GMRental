@@ -256,7 +256,7 @@ class _RoomContentState extends ConsumerState<_RoomContent> {
                     DataCell(Text(room.displayRoomNumber.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary))),
                     DataCell(Text(room.floorLabel)),
                     DataCell(_statusBadge(room.status)),
-                    DataCell(Text('${t?.insuranceAmount.toStringAsFixed(0) ?? room.monthlyRent.toStringAsFixed(0)} LE', style: const TextStyle(fontWeight: FontWeight.w600))),
+                    DataCell(Text(t?.insuranceAmount.toStringAsFixed(0) ?? '—', style: const TextStyle(fontWeight: FontWeight.w600))),
                     DataCell(Text(t?.name ?? '—')),
                     DataCell(t != null ? (t.isPaid ? AppBadge.paid() : AppBadge.unpaid()) : const Text('—')),
                     DataCell(Row(mainAxisSize: MainAxisSize.min, children: [
@@ -426,7 +426,6 @@ class _RoomContentState extends ConsumerState<_RoomContent> {
   // ── Room Settings ─────────────────────────────────
   void _showRoomSettings(BuildContext ctx, WidgetRef ref, Room room) {
     final repo = ref.read(supabaseRepositoryProvider);
-    final rentCtrl = TextEditingController(text: room.monthlyRent.toString());
     final reservedCtrl = TextEditingController(text: room.reservedAmount > 0 ? room.reservedAmount.toString() : '');
     String status = room.status;
     String floor = room.floor;
@@ -438,12 +437,6 @@ class _RoomContentState extends ConsumerState<_RoomContent> {
           title: Text('إعدادات أوضة ${room.roomNumber}'),
           content: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              TextField(
-                controller: rentCtrl,
-                decoration: const InputDecoration(labelText: 'الإيجار الشهري', border: OutlineInputBorder()),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 value: status,
                 decoration: const InputDecoration(labelText: 'الحالة', border: OutlineInputBorder()),
@@ -484,11 +477,9 @@ class _RoomContentState extends ConsumerState<_RoomContent> {
                 final authed = await showPasswordDialog(ctx, ref);
                 if (!authed) return;
 
-                final rent = double.tryParse(rentCtrl.text) ?? room.monthlyRent;
                 final reservedAmt = status == 'reserved' ? (double.tryParse(reservedCtrl.text) ?? 0) : 0.0;
                 try {
                   await repo.updateRoom(room.copyWith(
-                    monthlyRent: rent,
                     status: status,
                     reservedAmount: reservedAmt,
                     floor: floor,
@@ -498,9 +489,9 @@ class _RoomContentState extends ConsumerState<_RoomContent> {
                     entityType: 'room',
                     entityId: room.id.toString(),
                     entityName: 'Room ${room.displayRoomNumber}',
-                    oldVal: {'rent': room.monthlyRent, 'status': room.status, 'floor': room.floor, 'reserved': room.reservedAmount},
-                    newVal: {'rent': rent, 'status': status, 'floor': floor, 'reserved': reservedAmt},
-                    details: 'Updated Room ${room.displayRoomNumber}: rent=$rent, status=$status, floor=$floor, reserved=$reservedAmt',
+                    oldVal: {'status': room.status, 'floor': room.floor, 'reserved': room.reservedAmount},
+                    newVal: {'status': status, 'floor': floor, 'reserved': reservedAmt},
+                    details: 'Updated Room ${room.displayRoomNumber}: status=$status, floor=$floor, reserved=$reservedAmt',
                   );
                   if (dCtx.mounted) Navigator.pop(dCtx);
                   setState(() {});

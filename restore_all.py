@@ -1,0 +1,263 @@
+#!/usr/bin/env python3
+"""Restore all tenant due_dates from CSV. Only انجي stays unpaid."""
+
+import csv
+import re
+import json
+import urllib.request
+
+SUPABASE_URL = "https://sfkymoimtjgafvbclnqy.supabase.co"
+SUPABASE_KEY = "sb_publishable_L1gku764fsbQWnoeMPH1qg_C2cJuISC"
+
+ARABIC_MONTHS = {
+    "يناير": 1, "فبراير": 2, "مارس": 3, "ابريل": 4,
+    "مايو": 5, "يونيه": 6, "يوليو": 7, "اغسطس": 8,
+    "سبتمبر": 9, "اكتوبر": 10, "نوفمبر": 11, "ديسمبر": 12,
+}
+
+def parse_arabic_date(s):
+    s = s.strip()
+    if not s:
+        return None
+    if s == "ايونيه":
+        return (2026, 6, 1)
+    m = re.match(r"(\d{1,2})\s+(.+)", s)
+    if m:
+        day = int(m.group(1))
+        month = ARABIC_MONTHS.get(m.group(2).strip())
+        if month:
+            return (2026, month, day)
+    m = re.match(r"(\d{1,2})(.+)", s)
+    if m:
+        day = int(m.group(1))
+        month = ARABIC_MONTHS.get(m.group(2).strip())
+        if month:
+            return (2026, month, day)
+    return None
+
+def supabase_get(table, select="*"):
+    url = f"{SUPABASE_URL}/rest/v1/{table}?select={select}"
+    req = urllib.request.Request(url, headers={
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+    })
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        return json.loads(resp.read())
+
+def supabase_patch(table, filters, data):
+    url = f"{SUPABASE_URL}/rest/v1/{table}?{filters}"
+    body = json.dumps(data).encode()
+    req = urllib.request.Request(url, data=body, method="PATCH", headers={
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type": "application/json",
+        "Prefer": "return=minimal",
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return resp.status
+    except urllib.error.HTTPError as e:
+        print(f"  HTTP {e.code}: {e.read().decode()}")
+        return e.code
+
+# ── Load data ──────────────────────────────────────────────────────
+tenants = supabase_get("tenants", "id,name,room_id,payment_status,due_date")
+rooms = supabase_get("rooms", "id,room_number,building_id")
+room_data = {r["id"]: r for r in rooms}
+
+# Build name → tenant map
+name_to_tenant = {}
+for t in tenants:
+    name_to_tenant[t["name"].strip()] = t
+
+# Build (building_id, room_number) → tenant
+room_to_tenant = {}
+for t in tenants:
+    rid = t.get("room_id")
+    if rid:
+        r = room_data.get(rid)
+        if r:
+            room_to_tenant[(r["building_id"], r["room_number"])] = t
+
+# ── Parse CSV ──────────────────────────────────────────────────────
+csv_rows = []
+with open("/mnt/c/Users/ahmed/Downloads/New folder/real_estate_rentals.csv", encoding="utf-8-sig") as f:
+    reader = csv.DictReader(f)
+    for row in reader:
+        villa = row["فيلا"].strip()
+        if villa not in ("الجوي", "البركه"):
+            continue
+        name = row["الاسم"].strip()
+        room_code = row["رقم الغرفه"].strip()
+        due_raw = row.get("من", "").strip()
+        due_date = parse_arabic_date(due_raw)
+        
+        if villa == "البركه":
+            num = room_code[:-1]
+            floor = room_code[-2].upper()
+            room_num = f"B{num}{floor}"
+        else:
+            room_num = room_code[:-1]
+        
+        csv_rows.append({
+            "name": name,
+            "villa": villa,
+            "room_num": room_num,
+            "due_date": due_date,
+            "due_raw": due_raw,
+        })
+
+# ── Name matching: CSV name → DB name ─────────────────────────────
+# Build a comprehensive matching function
+def find_db_tenant(csv_name, room_num, villa):
+    # 1. Exact match
+    if csv_name in name_to_tenant:
+        return name_to_tenant[csv_name]
+    
+    # 2. Known fuzzy matches
+    fuzzy = {
+        "نهي عادل عبداللطيف جاب الله": "نهى عادل عبداللطيف جاب الله",
+        "محمد عمر وتامر محمد السيد": "محمود محمد وتامر",
+        "محمود جمال وعمر محمد": "محمود جمال و عمرمحمد",
+        "محمد حميد (ابو نواف)": "اتنين سعوديين",
+        "خلود مصطفى محمود": "خلود مصطفى اسماعيل",
+        "مهاب فكرى حامد": "مهاب فكري حامد",
+        "نيره حازم و ايه ابوزيد": "نيره حازم محمد تاج و أيه ابوزيد",
+        "انجى (مضيقة)": "انجي (مضيفه)",
+        "عمرو محمد على احمد جودة": "عمرو محمد علي احمد جوده",
+        "احمد رمضان احمد محمود": "احمد رمضان",
+        "محمد فرحات عبدالبارى": "محمد فرحات",
+        "الطاهر السيد حامد": "طاهر السيد حامد",
+        "انس نبيل عبالجواد": "انس نبيل عبدالجواد",
+        "عبدالرحمن احمد عبدالرسول": "عبدالرحمن احمد عبدالسيد",
+        "اشرف جمال عجوه/محمذ جمال عجوه": "اشرف جمال عجوه/محمد جمال عجوه",
+        "جومانه مروان شاهين": "جومانه مروان شاهين",
+        "منال عبّد الحميد ابراهيم": "منال عبدالحميد ابراهيم شرقاوي",
+        "سلوى خيمتونج": "سلوي خيمتونج",
+        "مجد نبيل عثمان جوده": "مجد نبيل عثمان واخوه",
+        "يارا أحمد عبدالحليم": "يارا احمد عبدالحليم",
+        "حازم ناصر محمد الزهر": "حازم ناصر محمد الزهر",
+        "ايمن جمال الدين الفرغلي": "ايمن جمال الدين الفرغلي",
+        "امجد محمد احمد عبده": "امجد محمد احمد عبده",
+        "هانى محمد محمد الشماع وابنه": "هانى محمد محمد الشماع وابنه",
+        "وائل نصيف عبدالسيد ابراهيم": "وائل نصيف عبدالسيد",
+    }
+    
+    db_name = fuzzy.get(csv_name)
+    if db_name and db_name in name_to_tenant:
+        return name_to_tenant[db_name]
+    
+    # 3. Substring match
+    for db_name, t in name_to_tenant.items():
+        if csv_name in db_name or db_name in csv_name:
+            return t
+    
+    # 4. Room-based match
+    bld_id = 1 if villa == "الجوي" else 2
+    t = room_to_tenant.get((bld_id, room_num))
+    if t:
+        return t
+    
+    return None
+
+# ── Update all tenants ────────────────────────────────────────────
+updated = 0
+skipped = 0
+already_correct = 0
+
+for r in csv_rows:
+    if not r["due_date"]:
+        skipped += 1
+        continue
+    
+    due_str = f"{r['due_date'][0]}-{r['due_date'][1]:02d}-{r['due_date'][2]:02d}"
+    
+    t = find_db_tenant(r["name"], r["room_num"], r["villa"])
+    
+    if not t:
+        print(f"NOT FOUND: {r['name']} | {r['villa']} | {r['room_num']}")
+        skipped += 1
+        continue
+    
+    # انجي stays unpaid, all others paid
+    is_انجي = "انجي" in t["name"]
+    new_status = "unpaid" if is_انجي else "paid"
+    
+    if t["due_date"] == due_str and t["payment_status"] == new_status:
+        already_correct += 1
+        continue
+    
+    status = supabase_patch("tenants", f"id=eq.{t['id']}", {"due_date": due_str, "payment_status": new_status})
+    if status in (200, 204):
+        updated += 1
+        print(f"✓ {t['name']} → due: {due_str}, {new_status} (was: {t['due_date']}, {t['payment_status']})")
+    else:
+        print(f"ERROR: {t['name']} → HTTP {status}")
+
+# Fix duplicates and non-CSV tenants
+# وليد عبد المجيد الماحى (duplicate of سلمى)
+for t in tenants:
+    if "وليد" in t["name"] and "الماحى" in t["name"]:
+        if t["due_date"] != "2026-01-06" or t["payment_status"] != "paid":
+            status = supabase_patch("tenants", f"id=eq.{t['id']}", {"due_date": "2026-01-06", "payment_status": "paid"})
+            print(f"✓ {t['name']} → due: 2026-01-06, paid (HTTP {status})")
+            updated += 1
+
+# ايمن فرغلي duplicate (old unpaid record)
+for t in tenants:
+    if "ايمن" in t["name"] and "فرغلي" in t["name"]:
+        if t["payment_status"] == "unpaid" or t["due_date"] != "2026-01-26":
+            status = supabase_patch("tenants", f"id=eq.{t['id']}", {"due_date": "2026-01-26", "payment_status": "paid"})
+            print(f"✓ {t['name']} (dup) → due: 2026-01-26, paid (HTTP {status})")
+            updated += 1
+
+# باسنت duplicates
+for t in tenants:
+    if "باسنت" in t["name"]:
+        if t["payment_status"] != "paid":
+            status = supabase_patch("tenants", f"id=eq.{t['id']}", {"payment_status": "paid"})
+            print(f"✓ {t['name']} → paid (HTTP {status})")
+            updated += 1
+
+# محمد السيد احمد حبيبي
+for t in tenants:
+    if "حبيبي" in t["name"]:
+        if t["payment_status"] != "paid" or t["due_date"] != "2026-08-15":
+            status = supabase_patch("tenants", f"id=eq.{t['id']}", {"due_date": "2026-08-15", "payment_status": "paid"})
+            print(f"✓ {t['name']} → due: 2026-08-15, paid (HTTP {status})")
+            updated += 1
+
+# عبدالله ثابت حسن
+for t in tenants:
+    if "عبدالله" in t["name"] and "ثابت" in t["name"]:
+        if t["payment_status"] != "paid":
+            status = supabase_patch("tenants", f"id=eq.{t['id']}", {"payment_status": "paid"})
+            print(f"✓ {t['name']} → paid (HTTP {status})")
+            updated += 1
+
+# احمد نزيه
+for t in tenants:
+    if "احمد نزيه" in t["name"]:
+        if t["payment_status"] != "paid":
+            status = supabase_patch("tenants", f"id=eq.{t['id']}", {"payment_status": "paid"})
+            print(f"✓ {t['name']} → paid (HTTP {status})")
+            updated += 1
+
+# mohammed
+for t in tenants:
+    if t["name"] == "mohammed":
+        if t["payment_status"] != "paid":
+            status = supabase_patch("tenants", f"id=eq.{t['id']}", {"payment_status": "paid"})
+            print(f"✓ {t['name']} → paid (HTTP {status})")
+            updated += 1
+
+# Ibrahim
+for t in tenants:
+    if t["name"] == "Ibrahim":
+        if t["payment_status"] != "paid":
+            status = supabase_patch("tenants", f"id=eq.{t['id']}", {"payment_status": "paid"})
+            print(f"✓ {t['name']} → paid (HTTP {status})")
+            updated += 1
+
+print(f"\n{'='*60}")
+print(f"Updated: {updated} | Already correct: {already_correct} | Skipped: {skipped}")

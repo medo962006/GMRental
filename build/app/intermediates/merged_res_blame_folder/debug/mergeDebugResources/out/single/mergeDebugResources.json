@@ -1,0 +1,54 @@
+[
+    {
+        "merged": "C:\\Users\\ahmed\\.gradle\\daemon\\8.14\\com.gmr.hostel_management.app-debug-47:\\mipmap-hdpi_ic_launcher.png.flat",
+        "source": "C:\\Users\\ahmed\\.gradle\\daemon\\8.14\\com.gmr.hostel_management.app-main-42:\\mipmap-hdpi\\ic_launcher.png"
+    },
+    {
+        "merged": "com.gmr.hostel_management.app-debug-47:/mipmap-anydpi-v26_ic_launcher_background.png.flat",
+        "source": "com.gmr.hostel_management.app-main-42:/mipmap-anydpi-v26/ic_launcher_background.png"
+    },
+    {
+        "merged": "com.gmr.hostel_management.app-debug-47:/mipmap-xhdpi_ic_launcher.png.flat",
+        "source": "com.gmr.hostel_management.app-main-42:/mipmap-xhdpi/ic_launcher.png"
+    },
+    {
+        "merged": "C:\\Users\\ahmed\\.gradle\\daemon\\8.14\\com.gmr.hostel_management.app-debug-47:\\mipmap-mdpi_ic_launcher.png.flat",
+        "source": "C:\\Users\\ahmed\\.gradle\\daemon\\8.14\\com.gmr.hostel_management.app-main-42:\\mipmap-mdpi\\ic_launcher.png"
+    },
+    {
+        "merged": "C:\\Users\\ahmed\\.gradle\\daemon\\8.14\\com.gmr.hostel_management.app-debug-47:\\mipmap-xhdpi_ic_launcher.png.flat",
+        "source": "C:\\Users\\ahmed\\.gradle\\daemon\\8.14\\com.gmr.hostel_management.app-main-42:\\mipmap-xhdpi\\ic_launcher.png"
+    },
+    {
+        "merged": "com.gmr.hostel_management.app-debug-47:/mipmap-xxxhdpi_ic_launcher.png.flat",
+        "source": "com.gmr.hostel_management.app-main-42:/mipmap-xxxhdpi/ic_launcher.png"
+    },
+    {
+        "merged": "C:\\Users\\ahmed\\.gradle\\daemon\\8.14\\com.gmr.hostel_management.app-debug-47:\\mipmap-xxxhdpi_ic_launcher.png.flat",
+        "source": "C:\\Users\\ahmed\\.gradle\\daemon\\8.14\\com.gmr.hostel_management.app-main-42:\\mipmap-xxxhdpi\\ic_launcher.png"
+    },
+    {
+        "merged": "com.gmr.hostel_management.app-debug-47:/mipmap-xxhdpi_ic_launcher.png.flat",
+        "source": "com.gmr.hostel_management.app-main-42:/mipmap-xxhdpi/ic_launcher.png"
+    },
+    {
+        "merged": "com.gmr.hostel_management.app-debug-47:/mipmap-mdpi_ic_launcher.png.flat",
+        "source": "com.gmr.hostel_management.app-main-42:/mipmap-mdpi/ic_launcher.png"
+    },
+    {
+        "merged": "C:\\Users\\ahmed\\.gradle\\daemon\\8.14\\com.gmr.hostel_management.app-debug-47:\\drawable-v21_launch_background.xml.flat",
+        "source": "C:\\Users\\ahmed\\.gradle\\daemon\\8.14\\com.gmr.hostel_management.app-main-42:\\drawable-v21\\launch_background.xml"
+    },
+    {
+        "merged": "com.gmr.hostel_management.app-debug-47:/mipmap-hdpi_ic_launcher.png.flat",
+        "source": "com.gmr.hostel_management.app-main-42:/mipmap-hdpi/ic_launcher.png"
+    },
+    {
+        "merged": "com.gmr.hostel_management.app-debug-47:/mipmap-anydpi-v26_ic_launcher_foreground.png.flat",
+        "source": "com.gmr.hostel_management.app-main-42:/mipmap-anydpi-v26/ic_launcher_foreground.png"
+    },
+    {
+        "merged": "C:\\Users\\ahmed\\.gradle\\daemon\\8.14\\com.gmr.hostel_management.app-debug-47:\\mipmap-xxhdpi_ic_launcher.png.flat",
+        "source": "C:\\Users\\ahmed\\.gradle\\daemon\\8.14\\com.gmr.hostel_management.app-main-42:\\mipmap-xxhdpi\\ic_launcher.png"
+    }
+]

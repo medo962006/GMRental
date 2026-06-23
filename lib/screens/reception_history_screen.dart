@@ -260,14 +260,6 @@ class _ReceptionHistoryScreenState
                         ],
                       ],
                     ),
-                    if (entry.monthlyRent > 0) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        '${entry.monthlyRent.toStringAsFixed(0)} EGP/month',
-                        style: const TextStyle(
-                            fontSize: 11, color: AppColors.textSecondary),
-                      ),
-                    ],
                   ],
                 ),
               ),
@@ -338,10 +330,6 @@ class _ReceptionHistoryScreenState
     final nationalityCtrl =
         TextEditingController(text: existing?.nationality ?? '');
     final roomCtrl = TextEditingController(text: existing?.roomNumber ?? '');
-    final rentCtrl = TextEditingController(
-        text: existing?.monthlyRent != null && existing!.monthlyRent > 0
-            ? existing.monthlyRent.toStringAsFixed(0)
-            : '');
     final insuranceCtrl = TextEditingController(
         text: existing?.insuranceAmount != null && existing!.insuranceAmount > 0
             ? existing.insuranceAmount.toStringAsFixed(0)
@@ -397,8 +385,6 @@ class _ReceptionHistoryScreenState
                 _dialogField('Phone', phoneCtrl, Icons.phone),
                 _dialogField('Nationality', nationalityCtrl, Icons.flag),
                 _dialogField('Room', roomCtrl, Icons.bed),
-                _dialogField('Monthly Rent', rentCtrl, Icons.attach_money,
-                    isNumber: true),
                 _dialogField('Insurance', insuranceCtrl, Icons.shield,
                     isNumber: true),
                 _dialogField('Lease Duration', durationCtrl, Icons.timer),
@@ -433,7 +419,6 @@ class _ReceptionHistoryScreenState
                 buildingId: buildingId,
                 roomNumber: roomCtrl.text.trim(),
                 moveInDate: existing?.moveInDate,
-                monthlyRent: double.tryParse(rentCtrl.text) ?? 0,
                 insuranceAmount: double.tryParse(insuranceCtrl.text) ?? 0,
                 leaseDuration: durationCtrl.text.trim(),
                 amountPaidUpfront: double.tryParse(paidCtrl.text) ?? 0,

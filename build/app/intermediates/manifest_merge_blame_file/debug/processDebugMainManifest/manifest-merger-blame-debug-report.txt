@@ -1,0 +1,238 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.gmr.hostel_management"
+4    android:versionCode="1"
+5    android:versionName="1.0.0" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="24"
+9        android:targetSdkVersion="36" />
+10    <!--
+11         The INTERNET permission is required for development. Specifically,
+12         the Flutter tool needs it to communicate with the running application
+13         to allow setting breakpoints, to provide hot reload, etc.
+14    -->
+15    <uses-permission android:name="android.permission.INTERNET" />
+15-->C:\Users\ahmed\GMRental\hostel_management\android\app\src\main\AndroidManifest.xml:2:5-66
+15-->C:\Users\ahmed\GMRental\hostel_management\android\app\src\main\AndroidManifest.xml:2:22-64
+16    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+16-->C:\Users\ahmed\GMRental\hostel_management\android\app\src\main\AndroidManifest.xml:3:5-76
+16-->C:\Users\ahmed\GMRental\hostel_management\android\app\src\main\AndroidManifest.xml:3:22-74
+17    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+17-->C:\Users\ahmed\GMRental\hostel_management\android\app\src\main\AndroidManifest.xml:4:5-80
+17-->C:\Users\ahmed\GMRental\hostel_management\android\app\src\main\AndroidManifest.xml:4:22-78
+18    <uses-permission android:name="android.permission.VIBRATE" />
+18-->C:\Users\ahmed\GMRental\hostel_management\android\app\src\main\AndroidManifest.xml:5:5-65
+18-->C:\Users\ahmed\GMRental\hostel_management\android\app\src\main\AndroidManifest.xml:5:22-63
+19
+20    <queries>
+20-->C:\Users\ahmed\GMRental\hostel_management\android\app\src\main\AndroidManifest.xml:40:5-45:15
+21        <intent>
+21-->C:\Users\ahmed\GMRental\hostel_management\android\app\src\main\AndroidManifest.xml:41:9-44:18
+22            <action android:name="android.intent.action.PROCESS_TEXT" />
+22-->C:\Users\ahmed\GMRental\hostel_management\android\app\src\main\AndroidManifest.xml:42:13-72
+22-->C:\Users\ahmed\GMRental\hostel_management\android\app\src\main\AndroidManifest.xml:42:21-70
+23
+24            <data android:mimeType="text/plain" />
+24-->C:\Users\ahmed\GMRental\hostel_management\android\app\src\main\AndroidManifest.xml:43:13-50
+24-->C:\Users\ahmed\GMRental\hostel_management\android\app\src\main\AndroidManifest.xml:43:19-48
+25        </intent>
+26    </queries>
+27
+28    <permission
+28-->[androidx.core:core:1.18.0] C:\Users\ahmed\.gradle\caches\8.14\transforms\13ffc0796444f86e60eee78ac97c40e2\transformed\core-1.18.0\AndroidManifest.xml:22:5-24:47
+29        android:name="com.gmr.hostel_management.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+29-->[androidx.core:core:1.18.0] C:\Users\ahmed\.gradle\caches\8.14\transforms\13ffc0796444f86e60eee78ac97c40e2\transformed\core-1.18.0\AndroidManifest.xml:23:9-81
+30        android:protectionLevel="signature" />
+30-->[androidx.core:core:1.18.0] C:\Users\ahmed\.gradle\caches\8.14\transforms\13ffc0796444f86e60eee78ac97c40e2\transformed\core-1.18.0\AndroidManifest.xml:24:9-44
+31
+32    <uses-permission android:name="com.gmr.hostel_management.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+32-->[androidx.core:core:1.18.0] C:\Users\ahmed\.gradle\caches\8.14\transforms\13ffc0796444f86e60eee78ac97c40e2\transformed\core-1.18.0\AndroidManifest.xml:26:5-97
+32-->[androidx.core:core:1.18.0] C:\Users\ahmed\.gradle\caches\8.14\transforms\13ffc0796444f86e60eee78ac97c40e2\transformed\core-1.18.0\AndroidManifest.xml:26:22-94
+33
+34    <application
+35        android:name="android.app.Application"
+36        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+36-->[androidx.core:core:1.18.0] C:\Users\ahmed\.gradle\caches\8.14\transforms\13ffc0796444f86e60eee78ac97c40e2\transformed\core-1.18.0\AndroidManifest.xml:28:18-86
+37        android:debuggable="true"
+38        android:extractNativeLibs="false"
+39        android:icon="@mipmap/ic_launcher"
+40        android:label="Hostel Manager" >
+41        <activity
+42            android:name="com.gmr.hostel_management.MainActivity"
+43            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+44            android:exported="true"
+45            android:hardwareAccelerated="true"
+46            android:launchMode="singleTop"
+47            android:taskAffinity=""
+48            android:theme="@style/LaunchTheme"
+49            android:windowSoftInputMode="adjustResize" >
+50            <meta-data
+51                android:name="io.flutter.embedding.android.NormalTheme"
+52                android:resource="@style/NormalTheme" />
+53
+54            <intent-filter>
+55                <action android:name="android.intent.action.MAIN" />
+56
+57                <category android:name="android.intent.category.LAUNCHER" />
+58            </intent-filter>
+59        </activity>
+60
+61        <meta-data
+62            android:name="flutterEmbedding"
+63            android:value="2" />
+64        <!-- Notification receiver for scheduled alerts -->
+65        <receiver
+66            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver"
+67            android:exported="false" />
+68        <receiver
+69            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver"
+70            android:exported="false" >
+71            <intent-filter>
+72                <action android:name="android.intent.action.BOOT_COMPLETED" />
+73                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+74            </intent-filter>
+75        </receiver>
+76
+77        <provider
+77-->[:image_picker_android] C:\Users\ahmed\GMRental\hostel_management\build\image_picker_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:9:9-17:20
+78            android:name="io.flutter.plugins.imagepicker.ImagePickerFileProvider"
+78-->[:image_picker_android] C:\Users\ahmed\GMRental\hostel_management\build\image_picker_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:10:13-82
+79            android:authorities="com.gmr.hostel_management.flutter.image_provider"
+79-->[:image_picker_android] C:\Users\ahmed\GMRental\hostel_management\build\image_picker_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:11:13-74
+80            android:exported="false"
+80-->[:image_picker_android] C:\Users\ahmed\GMRental\hostel_management\build\image_picker_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:12:13-37
+81            android:grantUriPermissions="true" >
+81-->[:image_picker_android] C:\Users\ahmed\GMRental\hostel_management\build\image_picker_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:13:13-47
+82            <meta-data
+82-->[:image_picker_android] C:\Users\ahmed\GMRental\hostel_management\build\image_picker_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:14:13-16:75
+83                android:name="android.support.FILE_PROVIDER_PATHS"
+83-->[:image_picker_android] C:\Users\ahmed\GMRental\hostel_management\build\image_picker_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:15:17-67
+84                android:resource="@xml/flutter_image_picker_file_paths" />
+84-->[:image_picker_android] C:\Users\ahmed\GMRental\hostel_management\build\image_picker_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:16:17-72
+85        </provider> <!-- Trigger Google Play services to install the backported photo picker module. -->
+86        <service
+86-->[:image_picker_android] C:\Users\ahmed\GMRental\hostel_management\build\image_picker_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:19:9-31:19
+87            android:name="com.google.android.gms.metadata.ModuleDependencies"
+87-->[:image_picker_android] C:\Users\ahmed\GMRental\hostel_management\build\image_picker_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:20:13-78
+88            android:enabled="false"
+88-->[:image_picker_android] C:\Users\ahmed\GMRental\hostel_management\build\image_picker_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:21:13-36
+89            android:exported="false" >
+89-->[:image_picker_android] C:\Users\ahmed\GMRental\hostel_management\build\image_picker_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:22:13-37
+90            <intent-filter>
+90-->[:image_picker_android] C:\Users\ahmed\GMRental\hostel_management\build\image_picker_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:24:13-26:29
+91                <action android:name="com.google.android.gms.metadata.MODULE_DEPENDENCIES" />
+91-->[:image_picker_android] C:\Users\ahmed\GMRental\hostel_management\build\image_picker_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:25:17-94
+91-->[:image_picker_android] C:\Users\ahmed\GMRental\hostel_management\build\image_picker_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:25:25-91
+92            </intent-filter>
+93
+94            <meta-data
+94-->[:image_picker_android] C:\Users\ahmed\GMRental\hostel_management\build\image_picker_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:28:13-30:36
+95                android:name="photopicker_activity:0:required"
+95-->[:image_picker_android] C:\Users\ahmed\GMRental\hostel_management\build\image_picker_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:29:17-63
+96                android:value="" />
+96-->[:image_picker_android] C:\Users\ahmed\GMRental\hostel_management\build\image_picker_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:30:17-33
+97        </service>
+98
+99        <activity
+99-->[:url_launcher_android] C:\Users\ahmed\GMRental\hostel_management\build\url_launcher_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:8:9-11:74
+100            android:name="io.flutter.plugins.urllauncher.WebViewActivity"
+100-->[:url_launcher_android] C:\Users\ahmed\GMRental\hostel_management\build\url_launcher_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:9:13-74
+101            android:exported="false"
+101-->[:url_launcher_android] C:\Users\ahmed\GMRental\hostel_management\build\url_launcher_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:10:13-37
+102            android:theme="@android:style/Theme.NoTitleBar.Fullscreen" />
+102-->[:url_launcher_android] C:\Users\ahmed\GMRental\hostel_management\build\url_launcher_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:11:13-71
+103
+104        <provider
+104-->[:printing] C:\Users\ahmed\GMRental\hostel_management\build\printing\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:8:9-16:20
+105            android:name="net.nfet.flutter.printing.PrintFileProvider"
+105-->[:printing] C:\Users\ahmed\GMRental\hostel_management\build\printing\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:9:13-71
+106            android:authorities="com.gmr.hostel_management.flutter.printing"
+106-->[:printing] C:\Users\ahmed\GMRental\hostel_management\build\printing\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:10:13-68
+107            android:exported="false"
+107-->[:printing] C:\Users\ahmed\GMRental\hostel_management\build\printing\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:11:13-37
+108            android:grantUriPermissions="true" >
+108-->[:printing] C:\Users\ahmed\GMRental\hostel_management\build\printing\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:12:13-47
+109            <meta-data
+109-->[:image_picker_android] C:\Users\ahmed\GMRental\hostel_management\build\image_picker_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:14:13-16:75
+110                android:name="android.support.FILE_PROVIDER_PATHS"
+110-->[:image_picker_android] C:\Users\ahmed\GMRental\hostel_management\build\image_picker_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:15:17-67
+111                android:resource="@xml/flutter_printing_file_paths" />
+111-->[:image_picker_android] C:\Users\ahmed\GMRental\hostel_management\build\image_picker_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:16:17-72
+112        </provider>
+113
+114        <uses-library
+114-->[androidx.window:window:1.2.0] C:\Users\ahmed\.gradle\caches\8.14\transforms\7217e782825a2d4d49e286a23835439b\transformed\window-1.2.0\AndroidManifest.xml:23:9-25:40
+115            android:name="androidx.window.extensions"
+115-->[androidx.window:window:1.2.0] C:\Users\ahmed\.gradle\caches\8.14\transforms\7217e782825a2d4d49e286a23835439b\transformed\window-1.2.0\AndroidManifest.xml:24:13-54
+116            android:required="false" />
+116-->[androidx.window:window:1.2.0] C:\Users\ahmed\.gradle\caches\8.14\transforms\7217e782825a2d4d49e286a23835439b\transformed\window-1.2.0\AndroidManifest.xml:25:13-37
+117        <uses-library
+117-->[androidx.window:window:1.2.0] C:\Users\ahmed\.gradle\caches\8.14\transforms\7217e782825a2d4d49e286a23835439b\transformed\window-1.2.0\AndroidManifest.xml:26:9-28:40
+118            android:name="androidx.window.sidecar"
+118-->[androidx.window:window:1.2.0] C:\Users\ahmed\.gradle\caches\8.14\transforms\7217e782825a2d4d49e286a23835439b\transformed\window-1.2.0\AndroidManifest.xml:27:13-51
+119            android:required="false" />
+119-->[androidx.window:window:1.2.0] C:\Users\ahmed\.gradle\caches\8.14\transforms\7217e782825a2d4d49e286a23835439b\transformed\window-1.2.0\AndroidManifest.xml:28:13-37
+120
+121        <provider
+121-->[androidx.lifecycle:lifecycle-process:2.7.0] C:\Users\ahmed\.gradle\caches\8.14\transforms\70c7f9c93d870d55aa75fb2befc1cc77\transformed\lifecycle-process-2.7.0\AndroidManifest.xml:24:9-32:20
+122            android:name="androidx.startup.InitializationProvider"
+122-->[androidx.lifecycle:lifecycle-process:2.7.0] C:\Users\ahmed\.gradle\caches\8.14\transforms\70c7f9c93d870d55aa75fb2befc1cc77\transformed\lifecycle-process-2.7.0\AndroidManifest.xml:25:13-67
+123            android:authorities="com.gmr.hostel_management.androidx-startup"
+123-->[androidx.lifecycle:lifecycle-process:2.7.0] C:\Users\ahmed\.gradle\caches\8.14\transforms\70c7f9c93d870d55aa75fb2befc1cc77\transformed\lifecycle-process-2.7.0\AndroidManifest.xml:26:13-68
+124            android:exported="false" >
+124-->[androidx.lifecycle:lifecycle-process:2.7.0] C:\Users\ahmed\.gradle\caches\8.14\transforms\70c7f9c93d870d55aa75fb2befc1cc77\transformed\lifecycle-process-2.7.0\AndroidManifest.xml:27:13-37
+125            <meta-data
+125-->[androidx.lifecycle:lifecycle-process:2.7.0] C:\Users\ahmed\.gradle\caches\8.14\transforms\70c7f9c93d870d55aa75fb2befc1cc77\transformed\lifecycle-process-2.7.0\AndroidManifest.xml:29:13-31:52
+126                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+126-->[androidx.lifecycle:lifecycle-process:2.7.0] C:\Users\ahmed\.gradle\caches\8.14\transforms\70c7f9c93d870d55aa75fb2befc1cc77\transformed\lifecycle-process-2.7.0\AndroidManifest.xml:30:17-78
+127                android:value="androidx.startup" />
+127-->[androidx.lifecycle:lifecycle-process:2.7.0] C:\Users\ahmed\.gradle\caches\8.14\transforms\70c7f9c93d870d55aa75fb2befc1cc77\transformed\lifecycle-process-2.7.0\AndroidManifest.xml:31:17-49
+128            <meta-data
+128-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\ahmed\.gradle\caches\8.14\transforms\a9cd928dbb32cb97d269fd14b2717658\transformed\profileinstaller-1.4.0\AndroidManifest.xml:29:13-31:52
+129                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+129-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\ahmed\.gradle\caches\8.14\transforms\a9cd928dbb32cb97d269fd14b2717658\transformed\profileinstaller-1.4.0\AndroidManifest.xml:30:17-85
+130                android:value="androidx.startup" />
+130-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\ahmed\.gradle\caches\8.14\transforms\a9cd928dbb32cb97d269fd14b2717658\transformed\profileinstaller-1.4.0\AndroidManifest.xml:31:17-49
+131        </provider>
+132
+133        <receiver
+133-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\ahmed\.gradle\caches\8.14\transforms\a9cd928dbb32cb97d269fd14b2717658\transformed\profileinstaller-1.4.0\AndroidManifest.xml:34:9-52:20
+134            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+134-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\ahmed\.gradle\caches\8.14\transforms\a9cd928dbb32cb97d269fd14b2717658\transformed\profileinstaller-1.4.0\AndroidManifest.xml:35:13-76
+135            android:directBootAware="false"
+135-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\ahmed\.gradle\caches\8.14\transforms\a9cd928dbb32cb97d269fd14b2717658\transformed\profileinstaller-1.4.0\AndroidManifest.xml:36:13-44
+136            android:enabled="true"
+136-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\ahmed\.gradle\caches\8.14\transforms\a9cd928dbb32cb97d269fd14b2717658\transformed\profileinstaller-1.4.0\AndroidManifest.xml:37:13-35
+137            android:exported="true"
+137-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\ahmed\.gradle\caches\8.14\transforms\a9cd928dbb32cb97d269fd14b2717658\transformed\profileinstaller-1.4.0\AndroidManifest.xml:38:13-36
+138            android:permission="android.permission.DUMP" >
+138-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\ahmed\.gradle\caches\8.14\transforms\a9cd928dbb32cb97d269fd14b2717658\transformed\profileinstaller-1.4.0\AndroidManifest.xml:39:13-57
+139            <intent-filter>
+139-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\ahmed\.gradle\caches\8.14\transforms\a9cd928dbb32cb97d269fd14b2717658\transformed\profileinstaller-1.4.0\AndroidManifest.xml:40:13-42:29
+140                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+140-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\ahmed\.gradle\caches\8.14\transforms\a9cd928dbb32cb97d269fd14b2717658\transformed\profileinstaller-1.4.0\AndroidManifest.xml:41:17-91
+140-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\ahmed\.gradle\caches\8.14\transforms\a9cd928dbb32cb97d269fd14b2717658\transformed\profileinstaller-1.4.0\AndroidManifest.xml:41:25-88
+141            </intent-filter>
+142            <intent-filter>
+142-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\ahmed\.gradle\caches\8.14\transforms\a9cd928dbb32cb97d269fd14b2717658\transformed\profileinstaller-1.4.0\AndroidManifest.xml:43:13-45:29
+143                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+143-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\ahmed\.gradle\caches\8.14\transforms\a9cd928dbb32cb97d269fd14b2717658\transformed\profileinstaller-1.4.0\AndroidManifest.xml:44:17-85
+143-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\ahmed\.gradle\caches\8.14\transforms\a9cd928dbb32cb97d269fd14b2717658\transformed\profileinstaller-1.4.0\AndroidManifest.xml:44:25-82
+144            </intent-filter>
+145            <intent-filter>
+145-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\ahmed\.gradle\caches\8.14\transforms\a9cd928dbb32cb97d269fd14b2717658\transformed\profileinstaller-1.4.0\AndroidManifest.xml:46:13-48:29
+146                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+146-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\ahmed\.gradle\caches\8.14\transforms\a9cd928dbb32cb97d269fd14b2717658\transformed\profileinstaller-1.4.0\AndroidManifest.xml:47:17-88
+146-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\ahmed\.gradle\caches\8.14\transforms\a9cd928dbb32cb97d269fd14b2717658\transformed\profileinstaller-1.4.0\AndroidManifest.xml:47:25-85
+147            </intent-filter>
+148            <intent-filter>
+148-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\ahmed\.gradle\caches\8.14\transforms\a9cd928dbb32cb97d269fd14b2717658\transformed\profileinstaller-1.4.0\AndroidManifest.xml:49:13-51:29
+149                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+149-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\ahmed\.gradle\caches\8.14\transforms\a9cd928dbb32cb97d269fd14b2717658\transformed\profileinstaller-1.4.0\AndroidManifest.xml:50:17-95
+149-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\ahmed\.gradle\caches\8.14\transforms\a9cd928dbb32cb97d269fd14b2717658\transformed\profileinstaller-1.4.0\AndroidManifest.xml:50:25-92
+150            </intent-filter>
+151        </receiver>
+152    </application>
+153
+154</manifest>

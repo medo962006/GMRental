@@ -1,0 +1,1 @@
+ C:\\Users\\ahmed\\GMRental\\hostel_management\\.dart_tool\\flutter_build\\2167c746aadd936ead56f528aea7bbbf\\native_assets.json: 

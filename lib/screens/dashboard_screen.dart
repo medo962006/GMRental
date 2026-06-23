@@ -131,7 +131,7 @@ class DashboardScreen extends ConsumerWidget {
             ...overdueTenants.map((t) {
               final room = rooms.firstWhere(
                 (r) => r.id == t.roomId,
-                orElse: () => Room(id: 0, roomNumber: '—', status: 'void', monthlyRent: 0),
+                orElse: () => Room(id: 0, roomNumber: '—', status: 'void'),
               );
               return _OverdueCard(
                 tenant: t,

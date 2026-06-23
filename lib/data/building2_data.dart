@@ -18,7 +18,6 @@ class Building2Data {
         id: id++,
         roomNumber: '$i',
         status: isVoid ? 'void' : 'occupied',
-        monthlyRent: _groundRent(i),
       ));
     }
 
@@ -29,7 +28,6 @@ class Building2Data {
         id: id++,
         roomNumber: '$i--',
         status: isVoid ? 'void' : 'occupied',
-        monthlyRent: isVoid ? 0 : _firstRent(i),
       ));
     }
 
@@ -40,7 +38,6 @@ class Building2Data {
         id: id++,
         roomNumber: '$i---',
         status: isVoid ? 'void' : 'occupied',
-        monthlyRent: isVoid ? 0 : _secondRent(i),
       ));
     }
 
@@ -126,20 +123,5 @@ class Building2Data {
       gender: null,
       insuranceReturned: false,
     );
-  }
-
-  static double _groundRent(int room) {
-    const rents = {1: 10000, 3: 9500, 4: 12500, 5: 10500, 6: 9500, 7: 8000, 8: 9500, 9: 10500, 10: 12500, 11: 8000, 12: 8000, 13: 9500};
-    return rents[room]?.toDouble() ?? 0;
-  }
-
-  static double _firstRent(int room) {
-    const rents = {1: 12000, 2: 10000, 4: 7000, 5: 9000, 6: 9500, 8: 8000, 10: 10000, 11: 11000, 12: 10000, 13: 10000, 15: 10000};
-    return rents[room]?.toDouble() ?? 0;
-  }
-
-  static double _secondRent(int room) {
-    const rents = {1: 13500, 2: 13000, 5: 9000, 7: 9000, 8: 9000, 12: 13000, 13: 12000, 4: 12500};
-    return rents[room]?.toDouble() ?? 0;
   }
 }

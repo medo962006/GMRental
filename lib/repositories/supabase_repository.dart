@@ -51,7 +51,6 @@ class SupabaseRepository {
     final data = await _client.from('rooms').insert({
       'room_number': room.roomNumber,
       'status': room.status,
-      'monthly_rent': room.monthlyRent,
       'reserved_amount': room.reservedAmount,
       'building_id': room.buildingId,
     }).select().single();
@@ -62,7 +61,6 @@ class SupabaseRepository {
     final data = await _client.from('rooms').update({
       'room_number': room.roomNumber,
       'status': room.status,
-      'monthly_rent': room.monthlyRent,
       'reserved_amount': room.reservedAmount,
       'building_id': room.buildingId,
     }).eq('id', room.id).select().single();
@@ -587,7 +585,7 @@ class SupabaseRepository {
     final totalRentCollected =
         tenants.where((t) => t.isPaid).fold(0.0, (sum, t) => sum + t.insuranceAmount);
 
-    // Overdue: sum of monthlyRent for unpaid tenants whose dueDate has passed
+    // Overdue: sum of insuranceAmount for unpaid tenants whose dueDate has passed
     final overdueTenants = tenants.where((t) {
       if (t.isPaid) return false;
       if (t.dueDate == null) return false;
@@ -977,7 +975,6 @@ class SupabaseRepository {
       'building_id': entry.buildingId,
       'room_number': entry.roomNumber,
       'move_in_date': entry.moveInDate?.toIso8601String().split('T').first,
-      'monthly_rent': entry.monthlyRent,
       'insurance_amount': entry.insuranceAmount,
       'lease_duration': entry.leaseDuration,
       'amount_paid_upfront': entry.amountPaidUpfront,
@@ -997,7 +994,6 @@ class SupabaseRepository {
       'building_id': entry.buildingId,
       'room_number': entry.roomNumber,
       'move_in_date': entry.moveInDate?.toIso8601String().split('T').first,
-      'monthly_rent': entry.monthlyRent,
       'insurance_amount': entry.insuranceAmount,
       'lease_duration': entry.leaseDuration,
       'amount_paid_upfront': entry.amountPaidUpfront,

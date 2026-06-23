@@ -9,8 +9,6 @@ class Room {
   @JsonKey(name: 'room_number')
   final String roomNumber;
   final String status; // occupied | void | maintenance | reserved
-  @JsonKey(name: 'monthly_rent')
-  final double monthlyRent;
   @JsonKey(name: 'reserved_amount')
   final double reservedAmount;
   @JsonKey(name: 'building_id')
@@ -21,7 +19,6 @@ class Room {
     required this.id,
     required this.roomNumber,
     required this.status,
-    required this.monthlyRent,
     this.reservedAmount = 0,
     this.buildingId = 1,
     this.floor = 'G',
@@ -34,7 +31,6 @@ class Room {
     int? id,
     String? roomNumber,
     String? status,
-    double? monthlyRent,
     double? reservedAmount,
     int? buildingId,
     String? floor,
@@ -43,7 +39,6 @@ class Room {
       id: id ?? this.id,
       roomNumber: roomNumber ?? this.roomNumber,
       status: status ?? this.status,
-      monthlyRent: monthlyRent ?? this.monthlyRent,
       reservedAmount: reservedAmount ?? this.reservedAmount,
       buildingId: buildingId ?? this.buildingId,
       floor: floor ?? this.floor,

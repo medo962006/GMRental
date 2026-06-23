@@ -1,0 +1,28 @@
+^C:\USERS\AHMED\GMRENTAL\HOSTEL_MANAGEMENT\BUILD\WINDOWS\X64\CMAKEFILES\187F7311A8C7E47B84EC1E806010958A\FLUTTER_WINDOWS.DLL.RULE
+setlocal
+"C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -E env FLUTTER_ROOT=C:\Users\ahmed\FlutterSDK\flutter PROJECT_DIR=C:\Users\ahmed\GMRental\hostel_management FLUTTER_ROOT=C:\Users\ahmed\FlutterSDK\flutter FLUTTER_EPHEMERAL_DIR=C:\Users\ahmed\GMRental\hostel_management\windows\flutter\ephemeral PROJECT_DIR=C:\Users\ahmed\GMRental\hostel_management FLUTTER_TARGET=C:\Users\ahmed\GMRental\hostel_management\lib\main.dart DART_DEFINES=RkxVVFRFUl9WRVJTSU9OPTMuMzguNA==,RkxVVFRFUl9DSEFOTkVMPXN0YWJsZQ==,RkxVVFRFUl9HSVRfVVJMPWh0dHBzOi8vZ2l0aHViLmNvbS9mbHV0dGVyL2ZsdXR0ZXIuZ2l0,RkxVVFRFUl9GUkFNRVdPUktfUkVWSVNJT049NjZkZDkzZjlhMg==,RkxVVFRFUl9FTkdJTkVfUkVWSVNJT049YTVjYjk2MzY5ZQ==,RkxVVFRFUl9EQVJUX1ZFUlNJT049My4xMC4z DART_OBFUSCATION=false TRACK_WIDGET_CREATION=true TREE_SHAKE_ICONS=false PACKAGE_CONFIG=C:\Users\ahmed\GMRental\hostel_management\.dart_tool\package_config.json C:/Users/ahmed/FlutterSDK/flutter/packages/flutter_tools/bin/tool_backend.bat windows-x64 Debug
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+^C:\USERS\AHMED\GMRENTAL\HOSTEL_MANAGEMENT\BUILD\WINDOWS\X64\CMAKEFILES\9349862A20352AA731E3293EF4D7ED1E\FLUTTER_ASSEMBLE.RULE
+setlocal
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+^C:\USERS\AHMED\GMRENTAL\HOSTEL_MANAGEMENT\WINDOWS\FLUTTER\CMAKELISTS.TXT
+setlocal
+"C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -SC:/Users/ahmed/GMRental/hostel_management/windows -BC:/Users/ahmed/GMRental/hostel_management/build/windows/x64 --check-stamp-file C:/Users/ahmed/GMRental/hostel_management/build/windows/x64/flutter/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

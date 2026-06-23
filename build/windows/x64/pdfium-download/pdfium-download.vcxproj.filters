@@ -1,0 +1,44 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="18.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\ahmed\GMRental\hostel_management\build\windows\x64\pdfium-download\CMakeFiles\11b71d7ea96e1dd1e944da405ab36697\pdfium-download-mkdir.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="C:\Users\ahmed\GMRental\hostel_management\build\windows\x64\pdfium-download\CMakeFiles\11b71d7ea96e1dd1e944da405ab36697\pdfium-download-download.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="C:\Users\ahmed\GMRental\hostel_management\build\windows\x64\pdfium-download\CMakeFiles\11b71d7ea96e1dd1e944da405ab36697\pdfium-download-update.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="C:\Users\ahmed\GMRental\hostel_management\build\windows\x64\pdfium-download\CMakeFiles\11b71d7ea96e1dd1e944da405ab36697\pdfium-download-patch.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="C:\Users\ahmed\GMRental\hostel_management\build\windows\x64\pdfium-download\CMakeFiles\11b71d7ea96e1dd1e944da405ab36697\pdfium-download-configure.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="C:\Users\ahmed\GMRental\hostel_management\build\windows\x64\pdfium-download\CMakeFiles\11b71d7ea96e1dd1e944da405ab36697\pdfium-download-build.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="C:\Users\ahmed\GMRental\hostel_management\build\windows\x64\pdfium-download\CMakeFiles\11b71d7ea96e1dd1e944da405ab36697\pdfium-download-install.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="C:\Users\ahmed\GMRental\hostel_management\build\windows\x64\pdfium-download\CMakeFiles\11b71d7ea96e1dd1e944da405ab36697\pdfium-download-test.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="C:\Users\ahmed\GMRental\hostel_management\build\windows\x64\pdfium-download\CMakeFiles\3699600c106f78c905b8bb83b62df6d5\pdfium-download-complete.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="C:\Users\ahmed\GMRental\hostel_management\build\windows\x64\pdfium-download\CMakeFiles\24fa746e83b44ab246a439a7edf1d272\pdfium-download.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="C:\Users\ahmed\GMRental\hostel_management\build\windows\x64\pdfium-download\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="C:\Users\ahmed\GMRental\hostel_management\build\windows\x64\pdfium-download\CMakeFiles\pdfium-download" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{0C2994B4-765F-36A6-BF7B-0A457F4CFD9F}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

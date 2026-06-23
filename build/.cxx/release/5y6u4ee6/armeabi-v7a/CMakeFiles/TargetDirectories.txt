@@ -1,0 +1,2 @@
+C:/Users/ahmed/GMRental/hostel_management/build/.cxx/release/5y6u4ee6/armeabi-v7a/CMakeFiles/edit_cache.dir
+C:/Users/ahmed/GMRental/hostel_management/build/.cxx/release/5y6u4ee6/armeabi-v7a/CMakeFiles/rebuild_cache.dir

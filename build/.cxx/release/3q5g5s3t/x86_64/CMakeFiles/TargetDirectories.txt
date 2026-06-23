@@ -1,0 +1,2 @@
+C:/Users/ahmed/GMRental/hostel_management/build/.cxx/release/3q5g5s3t/x86_64/CMakeFiles/edit_cache.dir
+C:/Users/ahmed/GMRental/hostel_management/build/.cxx/release/3q5g5s3t/x86_64/CMakeFiles/rebuild_cache.dir
