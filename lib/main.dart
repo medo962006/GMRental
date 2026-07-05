@@ -1,4 +1,5 @@
 // lib/main.dart
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -38,9 +39,14 @@ class _HostelManagerAppState extends ConsumerState<HostelManagerApp> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       NotificationService.instance.runAllChecks();
-      // Auto-update disabled — payment status is manual control
-      // To re-enable: uncomment the line below
-      // ref.read(supabaseRepositoryProvider).autoUpdatePaymentStatus().catchError((_) => 0);
+      // Flip paid tenants whose due_date has passed to unpaid.
+      // See autoUpdatePaymentStatus() for full behavior.
+      unawaited(
+        ref
+            .read(supabaseRepositoryProvider)
+            .autoUpdatePaymentStatus()
+            .then<int>((_) => 0, onError: (_) => 0),
+      );
     });
   }
 

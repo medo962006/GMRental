@@ -627,9 +627,16 @@ class SupabaseRepository {
   // ════════════════════════════════════════════════════════
 
   /// Auto-update payment_status for all tenants based on due_date.
-  /// Only resets due_date for already-unpaid tenants (overdue housekeeping).
-  /// Does NOT mark paid or unpaid — that's manual control.
-  /// Call this on app startup.
+  ///
+  /// Runs once on app startup:
+  ///   1. PAID tenants whose due_date has passed → flip to unpaid (this was the
+  ///      missing behavior — paid tenants no longer stay paid past their due
+  ///      date just because nobody clicked "Mark Unpaid").
+  ///   2. UNPAID tenants with a stale due_date → reset due_date to today so
+  ///      the overdue countdown restarts from today instead of counting days
+  ///      from the original missed date.
+  ///
+  /// Does NOT flip unpaid → paid (admin sets that manually via markTenantPaid).
   Future<int> autoUpdatePaymentStatus({int? buildingId}) async {
     final tenants = buildingId != null
         ? await getActiveTenants(buildingId: buildingId)
@@ -644,9 +651,16 @@ class SupabaseRepository {
 
       final isPastDue = t.dueDate!.isBefore(now);
 
-      if (isPastDue && t.isUnpaid) {
+      if (t.isPaid && isPastDue) {
+        // PAST-DUE + still marked paid → flip to unpaid. Keep the original
+        // due_date so the overdue count shows the actual days late.
+        await _client.from('tenants').update({
+          'payment_status': 'unpaid',
+        }).eq('id', t.id);
+        updated++;
+      } else if (t.isUnpaid && isPastDue) {
         // Already unpaid but due_date is stale → reset due_date to today
-        // so overdue count resets from today
+        // so overdue count resets from today (housekeeping).
         await _client.from('tenants').update({
           'due_date': todayStr,
         }).eq('id', t.id);
