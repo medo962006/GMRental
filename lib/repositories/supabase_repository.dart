@@ -629,9 +629,9 @@ class SupabaseRepository {
   /// Auto-update payment_status for all tenants based on due_date.
   ///
   /// Runs once on app startup:
-  ///   1. PAID tenants whose due_date has passed → flip to unpaid (this was the
-  ///      missing behavior — paid tenants no longer stay paid past their due
-  ///      date just because nobody clicked "Mark Unpaid").
+  ///   1. PAID tenants whose due_date is strictly BEFORE today → flip to
+  ///      unpaid (do not flip on the exact due day — paying on the due day
+  ///      is on time).
   ///   2. UNPAID tenants with a stale due_date → reset due_date to today so
   ///      the overdue countdown restarts from today instead of counting days
   ///      from the original missed date.
@@ -643,13 +643,17 @@ class SupabaseRepository {
         : await _client.from('tenants').select().eq('status', 'active').then(
             (data) => (data as List).map((e) => Tenant.fromJson(e)).toList());
     final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
     final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
     int updated = 0;
 
     for (final t in tenants) {
       if (t.dueDate == null) continue;
 
-      final isPastDue = t.dueDate!.isBefore(now);
+      // Compare at day granularity: a tenant is past due only when their
+      // due_date calendar day is strictly before today's calendar day.
+      final dueDay = DateTime(t.dueDate!.year, t.dueDate!.month, t.dueDate!.day);
+      final isPastDue = dueDay.isBefore(today);
 
       if (t.isPaid && isPastDue) {
         // PAST-DUE + still marked paid → flip to unpaid. Keep the original

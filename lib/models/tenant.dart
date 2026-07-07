@@ -84,6 +84,10 @@ class Tenant {
 
   bool get isOverdue {
     if (dueDate == null || isPaid) return false;
-    return DateTime.now().isAfter(dueDate!);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final dueDay = DateTime(dueDate!.year, dueDate!.month, dueDate!.day);
+    // Strict "before the due day" — paying on the due day is not overdue.
+    return dueDay.isBefore(today);
   }
 }
