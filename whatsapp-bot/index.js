@@ -410,14 +410,37 @@ console.log('[START] Starting Hostel Manager WhatsApp Bot...');
 console.log('[CONFIG] Timezone: ' + TIMEZONE);
 console.log('[CONFIG] Schedule: ' + CRON_SCHEDULE + ' (12 PM Egypt Time)');
 
+// Clean up any stale Chrome lock files before starting
+const fs = require('fs');
+const path = require('path');
+const authDir = path.join(__dirname, '.wwebjs_auth');
+const lockFile = path.join(authDir, 'SingletonLock');
+if (fs.existsSync(lockFile)) {
+  console.log('[INIT] Removing stale Chrome lock file...');
+  fs.unlinkSync(lockFile);
+}
+const singletonCookie = path.join(authDir, 'SingletonCookie');
+if (fs.existsSync(singletonCookie)) {
+  fs.unlinkSync(singletonCookie);
+}
+const singletonSocket = path.join(authDir, 'SingletonSocket');
+if (fs.existsSync(singletonSocket)) {
+  fs.unlinkSync(singletonSocket);
+}
+
 // Add a small delay to ensure Chrome is fully ready before initializing
 console.log('[INIT] Waiting for Chrome to stabilize...');
-setTimeout(async () => {
-  await client.initialize().catch(err => {
+
+async function init() {
+  await new Promise(r => setTimeout(r, 3000));
+  
+  client.initialize().catch(err => {
     console.error('[ERROR] Failed to initialize:', err);
     process.exit(1);
   });
-}, 3000);
+}
+
+init();
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
