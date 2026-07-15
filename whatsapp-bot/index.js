@@ -94,8 +94,8 @@ client.on('qr', (qr) => {
 
 client.on('ready', async () => {
   console.log('\n✅ Bot is ready and logged in!');
-  console.log(`📛 Bot name: ${BOT_NAME}`);
-  console.log(`⏰ Scheduled to run at: ${CRON_SCHEDULE} (${TIMEZONE})`);
+  console.log(`[BOT] Bot name: ${BOT_NAME}`);
+  console.log(`[TIME] Scheduled to run at: ${CRON_SCHEDULE} (${TIMEZONE})`);
   isReady = true;
   
   // Run immediately on startup for testing (optional)
