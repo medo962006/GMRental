@@ -270,19 +270,32 @@ console.log('[CONFIG] Schedule: ' + CRON_SCHEDULE + ' (12 PM Egypt Time)');
 const fs = require('fs');
 const path = require('path');
 const authDir = path.join(__dirname, '.wwebjs_auth');
-const lockFile = path.join(authDir, 'SingletonLock');
-if (fs.existsSync(lockFile)) {
-  console.log('[INIT] Removing stale Chrome lock file...');
-  fs.unlinkSync(lockFile);
+
+// Aggressive cleanup - remove entire auth directory if it has lock issues
+function cleanAuthDir() {
+  if (!fs.existsSync(authDir)) {
+    fs.mkdirSync(authDir, { recursive: true });
+    return;
+  }
+
+  const files = fs.readdirSync(authDir);
+  for (const file of files) {
+    const filePath = path.join(authDir, file);
+    try {
+      const stat = fs.statSync(filePath);
+      if (stat.isFile() || stat.isSymbolicLink()) {
+        fs.unlinkSync(filePath);
+      } else if (stat.isDirectory()) {
+        fs.rmSync(filePath, { recursive: true, force: true });
+      }
+    } catch (e) {
+      console.log('[INIT] Could not remove ' + file + ': ' + e.message);
+    }
+  }
+  console.log('[INIT] Cleaned auth directory');
 }
-const singletonCookie = path.join(authDir, 'SingletonCookie');
-if (fs.existsSync(singletonCookie)) {
-  fs.unlinkSync(singletonCookie);
-}
-const singletonSocket = path.join(authDir, 'SingletonSocket');
-if (fs.existsSync(singletonSocket)) {
-  fs.unlinkSync(singletonSocket);
-}
+
+cleanAuthDir();
 
 console.log('[INIT] Waiting 10 seconds for Chrome to stabilize...');
 
