@@ -90,7 +90,12 @@ const client = new Client({
       '--force-color-profile=srgb',
       '--metrics-recording-only',
       '--no-report-upload',
-      '--disable-breakpad'
+      '--disable-breakpad',
+      '--disable-features=RendererCodeIntegrity',
+      '--disable-features=SitePerProcess',
+      '--disable-features=IsolateOrigins,site-per-process',
+      '--remote-debugging-port=9222',
+      '--remote-debugging-address=0.0.0.0'
     ],
     executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome-stable'
   },
