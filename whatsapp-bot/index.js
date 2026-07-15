@@ -27,7 +27,7 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 // ============================================================
-// WHATSAPP CLIENT SETUP
+// WHATSAPP CLIENT SETUP - MINIMAL CHROME CONFIG
 // ============================================================
 const client = new Client({
   authStrategy: new LocalAuth({
@@ -40,69 +40,16 @@ const client = new Client({
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
-      '--disable-accelerated-2d-canvas',
       '--disable-gpu',
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-accelerated-2d-canvas',
-      '--disable-gpu',
-      '--no-first-run',
       '--no-zygote',
       '--single-process',
-      '--disable-gpu',
-      '--disable-background-timer-throttling',
-      '--disable-backgrounding-occluded-windows',
-      '--disable-renderer-backgrounding',
-      '--disable-features=TranslateUI',
-      '--disable-ipc-flooding-protection',
-      '--no-first-run',
-      '--no-default-browser-check',
-      '--disable-crash-reporter',
-      '--disable-breakpad',
-      '--disable-extensions',
-      '--disable-plugins',
-      '--disable-sync',
-      '--metrics-recording-only',
-      '--mute-audio',
-      '--no-default-browser-check',
-      '--no-pings',
-      '--password-store=basic',
-      '--use-mock-keychain',
-      '--disable-background-networking',
-      '--disable-component-extensions-with-background-pages',
-      '--disable-features=TranslateUI',
-      '--enable-automation',
-      '--disable-infobars',
-      '--window-size=1280,720',
-      '--lang=ar-EG,ar',
-      '--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       '--disable-web-security',
-      '--disable-features=VizDisplayCompositor,IsolateOrigins,SitePerProcess,IsolateOrigins,SitePerProcess',
       '--disable-site-isolation-trials',
-      '--disable-site-isolation-for-policy',
-      '--disable-frame-rate-limit',
-      '--disable-field-trial-config',
-      '--disable-back-forward-cache',
-      '--disable-hang-monitor',
-      '--disable-prompt-on-repost',
-      '--disable-client-side-phishing-detection',
-      '--disable-component-update',
-      '--disable-default-apps',
-      '--disable-domain-reliability',
-      '--disable-features=AudioServiceOutOfProcess,MediaSessionService',
-      '--force-color-profile=srgb',
-      '--metrics-recording-only',
-      '--no-report-upload',
-      '--disable-breakpad',
-      '--disable-features=RendererCodeIntegrity,SitePerProcess,IsolateOrigins,SitePerProcess,BackForwardCache,ScriptStreaming,V8VmFuture,V8VmFuture2,BlinkGenPropertyTrees,NavigationInitiator,FrameLoadingPaint,VizDisplayCompositor,AudioServiceOutOfProcess,MediaSessionService,RendererCodeIntegrity,SitePerProcess,IsolateOrigins,BackForwardCache,ScriptStreaming,V8VmFuture,V8VmFuture2,BlinkGenPropertyTrees,NavigationInitiator,FrameLoadingPaint,VizDisplayCompositor,AudioServiceOutOfProcess,MediaSessionService',
-      '--remote-debugging-port=9222',
-      '--remote-debugging-address=0.0.0.0',
-      '--disable-features=RendererCodeIntegrity,SitePerProcess,IsolateOrigins,SitePerProcess,BackForwardCache,ScriptStreaming,V8VmFuture,V8VmFuture2,BlinkGenPropertyTrees,NavigationInitiator,FrameLoadingPaint,VizDisplayCompositor,AudioServiceOutOfProcess,MediaSessionService,RendererCodeIntegrity,SitePerProcess,IsolateOrigins,BackForwardCache,ScriptStreaming,V8VmFuture,V8VmFuture2,BlinkGenPropertyTrees,NavigationInitiator,FrameLoadingPaint,VizDisplayCompositor,AudioServiceOutOfProcess,MediaSessionService',
+      '--disable-features=IsolateOrigins,site-per-process',
       '--remote-debugging-port=9222',
       '--remote-debugging-address=0.0.0.0',
     ],
-    executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome-stable'
+    executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome-stable',
   },
   webVersionCache: {
     type: 'remote',
@@ -312,6 +259,10 @@ function scheduleCronJob() {
   return job;
 }
 
+// ============================================================
+// START THE BOT - LONG DELAY FOR CHROME STABILITY
+// ============================================================
+
 console.log('[START] Starting Hostel Manager WhatsApp Bot...');
 console.log('[CONFIG] Timezone: ' + TIMEZONE);
 console.log('[CONFIG] Schedule: ' + CRON_SCHEDULE + ' (12 PM Egypt Time)');
@@ -333,10 +284,10 @@ if (fs.existsSync(singletonSocket)) {
   fs.unlinkSync(singletonSocket);
 }
 
-console.log('[INIT] Waiting for Chrome to stabilize...');
+console.log('[INIT] Waiting 10 seconds for Chrome to stabilize...');
 
 async function init() {
-  await new Promise(r => setTimeout(r, 3000));
+  await new Promise(r => setTimeout(r, 10000));
 
   client.initialize().catch(err => {
     console.error('[ERROR] Failed to initialize:', err);
