@@ -46,6 +46,7 @@ const client = new Client({
       '--disable-web-security',
       '--disable-site-isolation-trials',
       '--disable-features=IsolateOrigins,site-per-process',
+      '--disable-features=LazyFrameLoading,ScriptStreaming,SitePerProcess,IsolateOrigins,BackForwardCache,ScriptStreaming,V8VmFuture,V8VmFuture2,BlinkGenPropertyTrees,NavigationInitiator,FrameLoadingPaint,VizDisplayCompositor,AudioServiceOutOfProcess,MediaSessionService,RendererCodeIntegrity,SitePerProcess,IsolateOrigins,BackForwardCache,ScriptStreaming,V8VmFuture,V8VmFuture2,BlinkGenPropertyTrees,NavigationInitiator,FrameLoadingPaint,VizDisplayCompositor,AudioServiceOutOfProcess,MediaSessionService,RendererCodeIntegrity,SitePerProcess,IsolateOrigins',
       '--remote-debugging-port=9222',
       '--remote-debugging-address=0.0.0.0',
     ],
