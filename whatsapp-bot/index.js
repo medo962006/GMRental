@@ -42,8 +42,15 @@ const client = new Client({
       '--disable-dev-shm-usage',
       '--disable-accelerated-2d-canvas',
       '--disable-gpu',
-      '--single-process',
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-accelerated-2d-canvas',
+      '--disable-gpu',
+      '--no-first-run',
       '--no-zygote',
+      '--single-process',
+      '--disable-gpu',
       '--disable-background-timer-throttling',
       '--disable-backgrounding-occluded-windows',
       '--disable-renderer-backgrounding',
@@ -64,16 +71,14 @@ const client = new Client({
       '--use-mock-keychain',
       '--disable-background-networking',
       '--disable-component-extensions-with-background-pages',
-      '--disable-features=TranslateUI,BlinkGenPropertyTrees',
+      '--disable-features=TranslateUI',
       '--enable-automation',
       '--disable-infobars',
       '--window-size=1280,720',
       '--lang=ar-EG,ar',
       '--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       '--disable-web-security',
-      '--disable-features=VizDisplayCompositor',
-      '--disable-features=OutOfBlinkCors',
-      '--disable-features=IsolateOrigins',
+      '--disable-features=VizDisplayCompositor,IsolateOrigins,SitePerProcess,IsolateOrigins,SitePerProcess',
       '--disable-site-isolation-trials',
       '--disable-site-isolation-for-policy',
       '--disable-frame-rate-limit',
@@ -85,79 +90,17 @@ const client = new Client({
       '--disable-component-update',
       '--disable-default-apps',
       '--disable-domain-reliability',
-      '--disable-features=AudioServiceOutOfProcess',
-      '--disable-features=MediaSessionService',
+      '--disable-features=AudioServiceOutOfProcess,MediaSessionService',
       '--force-color-profile=srgb',
       '--metrics-recording-only',
       '--no-report-upload',
       '--disable-breakpad',
-      '--disable-features=RendererCodeIntegrity',
-      '--disable-features=SitePerProcess',
-      '--disable-features=IsolateOrigins,site-per-process',
-      '--disable-features=LazyFrameLoading',
-      '--disable-features=ScriptStreaming',
-      '--disable-features=RendererCodeIntegrity',
-      '--disable-features=SitePerProcess',
-      '--disable-features=IsolateOrigins,site-per-process',
-      '--disable-features=BackForwardCache',
-      '--disable-features=ScriptStreaming',
-      '--disable-features=V8VmFuture',
-      '--disable-features=V8VmFuture2',
-      '--disable-features=BlinkGenPropertyTrees',
-      '--disable-features=NavigationInitiator',
-      '--disable-features=FrameLoadingPaint',
-      '--disable-features=VizDisplayCompositor',
-      '--disable-features=AudioServiceOutOfProcess',
-      '--disable-features=MediaSessionService',
-      '--disable-features=LazyFrameLoading',
-      '--disable-features=NavigationInitiator',
-      '--disable-features=FrameLoadingPaint',
-      '--disable-features=VizDisplayCompositor',
-      '--disable-features=AudioServiceOutOfProcess',
-      '--disable-features=MediaSessionService',
-      '--disable-features=RendererCodeIntegrity',
-      '--disable-features=SitePerProcess',
-      '--disable-features=IsolateOrigins,site-per-process',
-      '--disable-features=BackForwardCache',
-      '--disable-features=ScriptStreaming',
-      '--disable-features=V8VmFuture',
-      '--disable-features=V8VmFuture2',
-      '--disable-features=BlinkGenPropertyTrees',
-      '--disable-features=NavigationInitiator',
-      '--disable-features=FrameLoadingPaint',
-      '--disable-features=VizDisplayCompositor',
-      '--disable-features=AudioServiceOutOfProcess',
-      '--disable-features=MediaSessionService',
+      '--disable-features=RendererCodeIntegrity,SitePerProcess,IsolateOrigins,SitePerProcess,BackForwardCache,ScriptStreaming,V8VmFuture,V8VmFuture2,BlinkGenPropertyTrees,NavigationInitiator,FrameLoadingPaint,VizDisplayCompositor,AudioServiceOutOfProcess,MediaSessionService,RendererCodeIntegrity,SitePerProcess,IsolateOrigins,BackForwardCache,ScriptStreaming,V8VmFuture,V8VmFuture2,BlinkGenPropertyTrees,NavigationInitiator,FrameLoadingPaint,VizDisplayCompositor,AudioServiceOutOfProcess,MediaSessionService',
       '--remote-debugging-port=9222',
       '--remote-debugging-address=0.0.0.0',
-      '--disable-features=RendererCodeIntegrity',
-      '--disable-features=SitePerProcess',
-      '--disable-features=IsolateOrigins,site-per-process',
+      '--disable-features=RendererCodeIntegrity,SitePerProcess,IsolateOrigins,SitePerProcess,BackForwardCache,ScriptStreaming,V8VmFuture,V8VmFuture2,BlinkGenPropertyTrees,NavigationInitiator,FrameLoadingPaint,VizDisplayCompositor,AudioServiceOutOfProcess,MediaSessionService,RendererCodeIntegrity,SitePerProcess,IsolateOrigins,BackForwardCache,ScriptStreaming,V8VmFuture,V8VmFuture2,BlinkGenPropertyTrees,NavigationInitiator,FrameLoadingPaint,VizDisplayCompositor,AudioServiceOutOfProcess,MediaSessionService',
       '--remote-debugging-port=9222',
       '--remote-debugging-address=0.0.0.0',
-      '--disable-features=BackForwardCache',
-      '--disable-features=ScriptStreaming',
-      '--disable-features=V8VmFuture',
-      '--disable-features=V8VmFuture2',
-      '--disable-features=BlinkGenPropertyTrees',
-      '--disable-features=NavigationInitiator',
-      '--disable-features=FrameLoadingPaint',
-      '--disable-features=VizDisplayCompositor',
-      '--disable-features=AudioServiceOutOfProcess',
-      '--disable-features=MediaSessionService',
-      '--disable-features=RendererCodeIntegrity',
-      '--disable-features=SitePerProcess',
-      '--disable-features=IsolateOrigins,site-per-process',
-      '--disable-features=BackForwardCache',
-      '--disable-features=ScriptStreaming',
-      '--disable-features=V8VmFuture',
-      '--disable-features=V8VmFuture2',
-      '--disable-features=BlinkGenPropertyTrees',
-      '--disable-features=NavigationInitiator',
-      '--disable-features=FrameLoadingPaint',
-      '--disable-features=VizDisplayCompositor',
-      '--disable-features=AudioServiceOutOfProcess',
-      '--disable-features=MediaSessionService'
     ],
     executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome-stable'
   },
@@ -167,13 +110,9 @@ const client = new Client({
   }
 });
 
-// Track client state
-let isReady = false;
-
 // ============================================================
 // EVENT HANDLERS
 // ============================================================
-
 client.on('qr', (qr) => {
   console.log('\n[QR] Scan this QR code with your WhatsApp to log in:');
   qrcode.generate(qr, { small: true });
@@ -186,13 +125,11 @@ client.on('ready', async () => {
   console.log('[TIME] Scheduled to run at: ' + CRON_SCHEDULE + ' (' + TIMEZONE + ')');
   isReady = true;
 
-  // Run immediately on startup for testing (optional)
   if (process.env.RUN_ON_START === 'true') {
     console.log('[RUN] RUN_ON_START=true - Running reminders now...');
     await sendRentReminders();
   }
 
-  // Schedule the cron job
   scheduleCronJob();
 });
 
@@ -219,9 +156,6 @@ client.on('message_ack', (msg, ack) => {
 // CORE FUNCTIONS
 // ============================================================
 
-/**
- * Send rent reminders to all unpaid tenants who haven't received one yet
- */
 async function sendRentReminders() {
   if (!isReady) {
     console.log('[WAIT] Bot not ready yet, skipping...');
@@ -232,7 +166,6 @@ async function sendRentReminders() {
   const startTime = Date.now();
 
   try {
-    // 1. Get all active unpaid tenants
     const { data: tenants, error: tenantsError } = await supabase
       .from('tenants')
       .select('id, name, phone, room_id, building_id, due_date')
@@ -248,7 +181,6 @@ async function sendRentReminders() {
 
     console.log('[LIST] Found ' + tenants.length + ' unpaid tenant(s)');
 
-    // 2. Get room numbers for room_id mapping
     const roomIds = [...new Set(tenants.map(t => t.room_id).filter(Boolean))];
     const { data: rooms, error: roomsError } = await supabase
       .from('rooms')
@@ -258,7 +190,6 @@ async function sendRentReminders() {
     if (roomsError) throw roomsError;
     const roomMap = Object.fromEntries(rooms.map(r => [r.id, r.room_number]));
 
-    // 3. Get whatsapp_logs to check who already received a debt_reminder
     const tenantIds = tenants.map(t => t.id);
     const { data: logs, error: logsError } = await supabase
       .from('whatsapp_logs')
@@ -272,7 +203,6 @@ async function sendRentReminders() {
     const sentTenantIds = new Set(logs.map(l => l.tenant_id));
     console.log('[LOG] ' + sentTenantIds.size + ' tenant(s) already received a reminder');
 
-    // 4. Filter to only those who haven't received a reminder
     const tenantsToNotify = tenants.filter(t => !sentTenantIds.has(t.id));
 
     if (tenantsToNotify.length === 0) {
@@ -282,7 +212,6 @@ async function sendRentReminders() {
 
     console.log('[SEND] Sending reminders to ' + tenantsToNotify.length + ' tenant(s)...');
 
-    // 5. Send messages
     let sent = 0, failed = 0, skipped = 0;
 
     for (const tenant of tenantsToNotify) {
@@ -295,7 +224,6 @@ async function sendRentReminders() {
       const roomNum = tenant.room_id ? (roomMap[tenant.room_id] || '?') : '?';
       const message = 'عزيزي ' + tenant.name + ' (غرفة ' + roomNum + ')،\n\nهذا تذكير ودي بأن دفعة الإيجار مستحقة. يرجى سداد المبلغ في أقرب وقت ممكن.\n\nشكراً لتعاونكم.\nإدارة السكن';
 
-      // Format phone for WhatsApp
       const formattedPhone = formatPhoneForWhatsApp(tenant.phone);
       if (!formattedPhone) {
         console.log('[SKIP] Skipping ' + tenant.name + ' - invalid phone: ' + tenant.phone);
@@ -306,7 +234,6 @@ async function sendRentReminders() {
       try {
         await client.sendMessage(formattedPhone + '@c.us', message);
 
-        // Log success
         await supabase.from('whatsapp_logs').insert({
           tenant_id: tenant.id,
           message_type: 'debt_reminder',
@@ -318,13 +245,11 @@ async function sendRentReminders() {
         console.log('[OK] Sent to ' + tenant.name + ' (' + formattedPhone + ')');
         sent++;
 
-        // Rate limiting - 2 seconds between messages
         await new Promise(r => setTimeout(r, 2000));
 
       } catch (err) {
         console.error('[ERROR] Failed to send to ' + tenant.name + ': ' + err.message);
 
-        // Log failure
         await supabase.from('whatsapp_logs').insert({
           tenant_id: tenant.id,
           message_type: 'debt_reminder',
@@ -345,38 +270,27 @@ async function sendRentReminders() {
   }
 }
 
-/**
- * Format phone number for WhatsApp
- * Input: various formats (012-3456789, +201****6789, 20123456789, etc.)
- * Output: 20XXXXXXXXXX (Egypt country code + number without leading zero)
- */
 function formatPhoneForWhatsApp(phone) {
   if (!phone) return null;
 
-  // Clean the phone
   let cleaned = phone
-    .replace(/[\s\-\(\)]/g, '')  // Remove spaces, dashes, parentheses
-    .replace(/^\+/, '');         // Remove leading +
+    .replace(/[\s\-\(\)]/g, '')
+    .replace(/^\+/, '');
 
-  // Handle multiple numbers (take first valid Egyptian mobile)
   const parts = cleaned.split(/[\/\\,;]/);
 
   for (const part of parts) {
     let num = part.trim();
 
-    // If starts with 0, replace with 20 (Egypt)
     if (num.startsWith('0')) {
       num = '20' + num.substring(1);
     }
-    // If already starts with 20, good
     else if (!num.startsWith('20')) {
-      // If it's just 10 digits, assume Egypt
       if (/^1[0125]\d{8}$/.test(num)) {
         num = '20' + num;
       }
     }
 
-    // Validate: 20 + 10 digits starting with 10, 11, 12, 15
     if (/^201[0125]\d{8}$/.test(num)) {
       return num;
     }
@@ -385,11 +299,7 @@ function formatPhoneForWhatsApp(phone) {
   return null;
 }
 
-/**
- * Schedule the cron job
- */
 function scheduleCronJob() {
-  // Convert schedule to use timezone
   const job = cron.schedule(CRON_SCHEDULE, async () => {
     console.log('\n[CRON] [' + new Date().toLocaleString('en-EG', { timeZone: TIMEZONE }) + '] Running scheduled rent reminders...');
     await sendRentReminders();
@@ -402,15 +312,10 @@ function scheduleCronJob() {
   return job;
 }
 
-// ============================================================
-// START THE BOT
-// ============================================================
-
 console.log('[START] Starting Hostel Manager WhatsApp Bot...');
 console.log('[CONFIG] Timezone: ' + TIMEZONE);
 console.log('[CONFIG] Schedule: ' + CRON_SCHEDULE + ' (12 PM Egypt Time)');
 
-// Clean up any stale Chrome lock files before starting
 const fs = require('fs');
 const path = require('path');
 const authDir = path.join(__dirname, '.wwebjs_auth');
@@ -428,12 +333,11 @@ if (fs.existsSync(singletonSocket)) {
   fs.unlinkSync(singletonSocket);
 }
 
-// Add a small delay to ensure Chrome is fully ready before initializing
 console.log('[INIT] Waiting for Chrome to stabilize...');
 
 async function init() {
   await new Promise(r => setTimeout(r, 3000));
-  
+
   client.initialize().catch(err => {
     console.error('[ERROR] Failed to initialize:', err);
     process.exit(1);
@@ -442,7 +346,6 @@ async function init() {
 
 init();
 
-// Graceful shutdown
 process.on('SIGINT', async () => {
   console.log('\n[SHUTDOWN] Shutting down...');
   await client.destroy();
