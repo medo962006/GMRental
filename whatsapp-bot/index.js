@@ -410,10 +410,14 @@ console.log('[START] Starting Hostel Manager WhatsApp Bot...');
 console.log('[CONFIG] Timezone: ' + TIMEZONE);
 console.log('[CONFIG] Schedule: ' + CRON_SCHEDULE + ' (12 PM Egypt Time)');
 
-client.initialize().catch(err => {
-  console.error('[ERROR] Failed to initialize:', err);
-  process.exit(1);
-});
+// Add a small delay to ensure Chrome is fully ready before initializing
+console.log('[INIT] Waiting for Chrome to stabilize...');
+setTimeout(async () => {
+  await client.initialize().catch(err => {
+    console.error('[ERROR] Failed to initialize:', err);
+    process.exit(1);
+  });
+}, 3000);
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
