@@ -19,7 +19,7 @@ const TIMEZONE = process.env.TZ || 'Africa/Cairo';
 
 // Validate config
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  console.error('❌ Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in .env');
+  console.error('[ERROR] Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in .env');
   process.exit(1);
 }
 
@@ -87,20 +87,20 @@ let isReady = false;
 // ============================================================
 
 client.on('qr', (qr) => {
-  console.log('\n📱 Scan this QR code with your WhatsApp to log in:');
+  console.log('\n[QR] Scan this QR code with your WhatsApp to log in:');
   qrcode.generate(qr, { small: true });
   console.log('\nWaiting for authentication...\n');
 });
 
 client.on('ready', async () => {
-  console.log('\n✅ Bot is ready and logged in!');
+  console.log('\n[OK] Bot is ready and logged in!');
   console.log(`[BOT] Bot name: ${BOT_NAME}`);
   console.log(`[TIME] Scheduled to run at: ${CRON_SCHEDULE} (${TIMEZONE})`);
   isReady = true;
   
   // Run immediately on startup for testing (optional)
   if (process.env.RUN_ON_START === 'true') {
-    console.log('🚀 RUN_ON_START=true - Running reminders now...');
+    console.log('[RUN] RUN_ON_START=true - Running reminders now...');
     await sendRentReminders();
   }
   
@@ -109,21 +109,21 @@ client.on('ready', async () => {
 });
 
 client.on('authenticated', () => {
-  console.log('🔐 Authentication successful!');
+  console.log('[AUTH] Authentication successful!');
 });
 
 client.on('auth_failure', (msg) => {
-  console.error('❌ Authentication failed:', msg);
+  console.error('[AUTH-ERROR] Authentication failed:', msg);
 });
 
 client.on('disconnected', (reason) => {
-  console.log('📴 Client disconnected:', reason);
+  console.log('[DISCONNECTED] Client disconnected:', reason);
   isReady = false;
 });
 
 client.on('message_ack', (msg, ack) => {
   if (ack < 0) {
-    console.warn(`⚠️ Message failed (ack: ${ack}): ${msg.id._serialized}`);
+    console.warn('[WARN] Message failed (ack: ' + ack + '): ' + msg.id._serialized);
   }
 });
 
@@ -136,11 +136,11 @@ client.on('message_ack', (msg, ack) => {
  */
 async function sendRentReminders() {
   if (!isReady) {
-    console.log('⏳ Bot not ready yet, skipping...');
+    console.log('[WAIT] Bot not ready yet, skipping...');
     return;
   }
   
-  console.log('\n🔍 Checking for unpaid tenants...');
+  console.log('\n[SCAN] Checking for unpaid tenants...');
   const startTime = Date.now();
   
   try {
@@ -154,11 +154,11 @@ async function sendRentReminders() {
     if (tenantsError) throw tenantsError;
     
     if (!tenants || tenants.length === 0) {
-      console.log('✅ No unpaid tenants found');
+      console.log('[OK] No unpaid tenants found');
       return;
     }
     
-    console.log(`📋 Found ${tenants.length} unpaid tenant(s)`);
+    console.log('[LIST] Found ' + tenants.length + ' unpaid tenant(s)');
     
     // 2. Get room numbers for room_id mapping
     const roomIds = [...new Set(tenants.map(t => t.room_id).filter(Boolean))];
@@ -182,41 +182,41 @@ async function sendRentReminders() {
     if (logsError) throw logsError;
     
     const sentTenantIds = new Set(logs.map(l => l.tenant_id));
-    console.log(`📝 ${sentTenantIds.size} tenant(s) already received a reminder`);
+    console.log('[LOG] ' + sentTenantIds.size + ' tenant(s) already received a reminder');
     
     // 4. Filter to only those who haven't received a reminder
     const tenantsToNotify = tenants.filter(t => !sentTenantIds.has(t.id));
     
     if (tenantsToNotify.length === 0) {
-      console.log('✅ All unpaid tenants have already been notified');
+      console.log('[OK] All unpaid tenants have already been notified');
       return;
     }
     
-    console.log(`📤 Sending reminders to ${tenantsToNotify.length} tenant(s)...`);
+    console.log('[SEND] Sending reminders to ' + tenantsToNotify.length + ' tenant(s)...');
     
     // 5. Send messages
     let sent = 0, failed = 0, skipped = 0;
     
     for (const tenant of tenantsToNotify) {
       if (!tenant.phone || tenant.phone.trim() === '') {
-        console.log(`⏭️ Skipping ${tenant.name} - no phone number`);
+        console.log('[SKIP] Skipping ' + tenant.name + ' - no phone number');
         skipped++;
         continue;
       }
       
       const roomNum = tenant.room_id ? (roomMap[tenant.room_id] || '?') : '?';
-      const message = `عزيزي ${tenant.name} (غرفة ${roomNum})،\n\nهذا تذكير ودي بأن دفعة الإيجار مستحقة. يرجى سداد المبلغ في أقرب وقت ممكن.\n\nشكراً لتعاونكم.\nإدارة السكن`;
+      const message = 'عزيزي ' + tenant.name + ' (غرفة ' + roomNum + ')،\n\nهذا تذكير ودي بأن دفعة الإيجار مستحقة. يرجى سداد المبلغ في أقرب وقت ممكن.\n\nشكراً لتعاونكم.\nإدارة السكن';
       
       // Format phone for WhatsApp
       const formattedPhone = formatPhoneForWhatsApp(tenant.phone);
       if (!formattedPhone) {
-        console.log(`⏭️ Skipping ${tenant.name} - invalid phone: ${tenant.phone}`);
+        console.log('[SKIP] Skipping ' + tenant.name + ' - invalid phone: ' + tenant.phone);
         skipped++;
         continue;
       }
       
       try {
-        await client.sendMessage(`${formattedPhone}@c.us`, message);
+        await client.sendMessage(formattedPhone + '@c.us', message);
         
         // Log success
         await supabase.from('whatsapp_logs').insert({
@@ -227,14 +227,14 @@ async function sendRentReminders() {
           sent_at: new Date().toISOString()
         });
         
-        console.log(`✅ Sent to ${tenant.name} (${formattedPhone})`);
+        console.log('[OK] Sent to ' + tenant.name + ' (' + formattedPhone + ')');
         sent++;
         
         // Rate limiting - 2 seconds between messages
         await new Promise(r => setTimeout(r, 2000));
         
       } catch (err) {
-        console.error(`❌ Failed to send to ${tenant.name}: ${err.message}`);
+        console.error('[ERROR] Failed to send to ' + tenant.name + ': ' + err.message);
         
         // Log failure
         await supabase.from('whatsapp_logs').insert({
@@ -250,16 +250,16 @@ async function sendRentReminders() {
     }
     
     const duration = ((Date.now() - startTime) / 1000).toFixed(1);
-    console.log(`\n📊 Summary: ${sent} sent, ${failed} failed, ${skipped} skipped (${duration}s)`);
+    console.log('\n[STATS] Summary: ' + sent + ' sent, ' + failed + ' failed, ' + skipped + ' skipped (' + duration + 's)');
     
   } catch (error) {
-    console.error('❌ Error in sendRentReminders:', error.message);
+    console.error('[ERROR] Error in sendRentReminders:', error.message);
   }
 }
 
 /**
  * Format phone number for WhatsApp
- * Input: various formats (012-3456789, +20123456789, 20123456789, etc.)
+ * Input: various formats (012-3456789, +201****6789, 20123456789, etc.)
  * Output: 20XXXXXXXXXX (Egypt country code + number without leading zero)
  */
 function formatPhoneForWhatsApp(phone) {
@@ -303,14 +303,14 @@ function formatPhoneForWhatsApp(phone) {
 function scheduleCronJob() {
   // Convert schedule to use timezone
   const job = cron.schedule(CRON_SCHEDULE, async () => {
-    console.log(`\n⏰ [${new Date().toLocaleString('en-EG', { timeZone: TIMEZONE })}] Running scheduled rent reminders...`);
+    console.log('\n[CRON] [' + new Date().toLocaleString('en-EG', { timeZone: TIMEZONE }) + '] Running scheduled rent reminders...');
     await sendRentReminders();
   }, {
     scheduled: true,
     timezone: TIMEZONE
   });
   
-  console.log(`⏰ Cron job scheduled: ${CRON_SCHEDULE} (${TIMEZONE})`);
+  console.log('[CRON] Cron job scheduled: ' + CRON_SCHEDULE + ' (' + TIMEZONE + ')');
   return job;
 }
 
@@ -318,24 +318,24 @@ function scheduleCronJob() {
 // START THE BOT
 // ============================================================
 
-console.log('🚀 Starting Hostel Manager WhatsApp Bot...');
-console.log(`📍 Timezone: ${TIMEZONE}`);
-console.log(`⏰ Schedule: ${CRON_SCHEDULE} (12 PM Egypt Time)`);
+console.log('[START] Starting Hostel Manager WhatsApp Bot...');
+console.log('[CONFIG] Timezone: ' + TIMEZONE);
+console.log('[CONFIG] Schedule: ' + CRON_SCHEDULE + ' (12 PM Egypt Time)');
 
 client.initialize().catch(err => {
-  console.error('❌ Failed to initialize:', err);
+  console.error('[ERROR] Failed to initialize:', err);
   process.exit(1);
 });
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
-  console.log('\n🛑 Shutting down...');
+  console.log('\n[SHUTDOWN] Shutting down...');
   await client.destroy();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
-  console.log('\n🛑 Shutting down...');
+  console.log('\n[SHUTDOWN] Shutting down...');
   await client.destroy();
   process.exit(0);
 });
