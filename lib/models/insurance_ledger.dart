@@ -40,7 +40,8 @@ class InsuranceLedger {
     if (dueDateForRemaining == null) return false;
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final dueDay = DateTime(dueDateForRemaining!.year, dueDateForRemaining!.month, dueDateForRemaining!.day);
+    final dueLocal = dueDateForRemaining!.toLocal();
+    final dueDay = DateTime(dueLocal.year, dueLocal.month, dueLocal.day);
     // Overdue when due date is ON OR BEFORE today.
     return !dueDay.isAfter(today);
   }

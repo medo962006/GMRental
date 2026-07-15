@@ -86,7 +86,8 @@ class Tenant {
     if (dueDate == null || isPaid) return false;
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final dueDay = DateTime(dueDate!.year, dueDate!.month, dueDate!.day);
+    final dueLocal = dueDate!.toLocal();
+    final dueDay = DateTime(dueLocal.year, dueLocal.month, dueLocal.day);
     // Overdue when due date is ON OR BEFORE today.
     // (Paying on the due day is on time, but after the day ends they're overdue.)
     return !dueDay.isAfter(today);

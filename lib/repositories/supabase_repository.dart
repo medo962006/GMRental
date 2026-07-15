@@ -599,7 +599,8 @@ class SupabaseRepository {
       if (t.dueDate == null) return false;
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
-      final dueDay = DateTime(t.dueDate!.year, t.dueDate!.month, t.dueDate!.day);
+      final dueLocal = t.dueDate!.toLocal();
+      final dueDay = DateTime(dueLocal.year, dueLocal.month, dueLocal.day);
       // Overdue when due date is ON OR BEFORE today.
       return !dueDay.isAfter(today);
     }).toList();
@@ -665,7 +666,8 @@ class SupabaseRepository {
       // Compare at day granularity: a tenant is past due when their
       // due_date calendar day is ON OR BEFORE today's calendar day.
       // (Paying on the due day is on time, but once the day passes they become overdue.)
-      final dueDay = DateTime(t.dueDate!.year, t.dueDate!.month, t.dueDate!.day);
+      final dueLocal = t.dueDate!.toLocal();
+      final dueDay = DateTime(dueLocal.year, dueLocal.month, dueLocal.day);
       final isPastDue = !dueDay.isAfter(today); // dueDay <= today
 
       if (t.isPaid && isPastDue) {
