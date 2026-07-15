@@ -94,6 +94,8 @@ const client = new Client({
       '--disable-features=RendererCodeIntegrity',
       '--disable-features=SitePerProcess',
       '--disable-features=IsolateOrigins,site-per-process',
+      '--disable-features=LazyFrameLoading',
+      '--disable-features=ScriptStreaming',
       '--remote-debugging-port=9222',
       '--remote-debugging-address=0.0.0.0'
     ],
