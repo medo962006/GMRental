@@ -15,6 +15,36 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 const BOT_NAME = process.env.BOT_NAME || 'HostelManagerBot';
 
+// Aggressive auth cleanup - remove entire auth directory
+const fs = require('fs');
+const path = require('path');
+const authDir = path.join(__dirname, '.wwebjs_auth_sim');
+
+function cleanAuthDir() {
+  if (!fs.existsSync(authDir)) {
+    fs.mkdirSync(authDir, { recursive: true });
+    return;
+  }
+
+  const files = fs.readdirSync(authDir);
+  for (const file of files) {
+    const filePath = path.join(authDir, file);
+    try {
+      const stat = fs.statSync(filePath);
+      if (stat.isFile() || stat.isSymbolicLink()) {
+        fs.unlinkSync(filePath);
+      } else if (stat.isDirectory()) {
+        fs.rmSync(filePath, { recursive: true, force: true });
+      }
+    } catch (e) {
+      console.log('[SIM] Could not remove ' + file + ': ' + e.message);
+    }
+  }
+  console.log('[SIM] Cleaned auth directory');
+}
+
+cleanAuthDir();
+
 const client = new Client({
   authStrategy: new LocalAuth({
     clientId: BOT_NAME + '_sim',
@@ -185,18 +215,16 @@ client.on('qr', (qr) => {
   require('qrcode-terminal').generate(qr, { small: true });
 });
 
-client.initialize().catch(err => {
-  console.error('[SIM] Init error:', err);
-  process.exit(1);
-});
-
-// Wait 10 seconds for Chrome to stabilize before initializing
-console.log('[SIM] Waiting 10 seconds for Chrome to stabilize...');
-setTimeout(() => {
+async function init() {
+  console.log('[SIM] Waiting 10 seconds for Chrome to stabilize...');
+  await new Promise(r => setTimeout(r, 10000));
+  
   client.initialize().catch(err => {
     console.error('[SIM] Init error:', err);
     process.exit(1);
   });
-}, 10000);
+}
+
+init();
 
 console.log('[SIM] Starting simulation...');
