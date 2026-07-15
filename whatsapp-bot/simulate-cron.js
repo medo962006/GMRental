@@ -190,4 +190,13 @@ client.initialize().catch(err => {
   process.exit(1);
 });
 
+// Wait 10 seconds for Chrome to stabilize before initializing
+console.log('[SIM] Waiting 10 seconds for Chrome to stabilize...');
+setTimeout(() => {
+  client.initialize().catch(err => {
+    console.error('[SIM] Init error:', err);
+    process.exit(1);
+  });
+}, 10000);
+
 console.log('[SIM] Starting simulation...');
