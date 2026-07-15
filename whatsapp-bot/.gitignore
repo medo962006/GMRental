@@ -1,0 +1,7 @@
+# WhatsApp Bot - Git Ignore
+node_modules/
+.wwebjs_auth/
+.wwebjs_cache/
+.env
+*.log
+*.pid
