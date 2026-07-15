@@ -1,7 +1,7 @@
 # Hostel WhatsApp Bot - README
 
 ## Overview
-This bot sends daily rent reminders to unpaid tenants at 12:00 PM Egypt Time.
+This bot sends daily rent reminders to unpaid tenants at 12:00 PM Egypt Time (**Africa/Cairo** timezone).
 It tracks sent messages in Supabase to avoid duplicate reminders.
 
 ## Features
