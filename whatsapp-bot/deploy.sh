@@ -47,6 +47,15 @@ ssh ${REMOTE_USER}@${REMOTE_HOST} "
     else
         echo 'Chrome already installed'
     fi
+    
+    # Install Node.js 22 if not present
+    if ! command -v node &> /dev/null || [[ \$(node --version | cut -d'v' -f2 | cut -d'.' -f1) -lt 22 ]]; then
+        echo 'Installing Node.js 22...'
+        curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+        apt-get install -y nodejs
+    else
+        echo 'Node.js 22+ already installed'
+    fi
 "
 
 # Create systemd service
