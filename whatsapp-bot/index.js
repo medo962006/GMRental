@@ -35,80 +35,83 @@ const client = new Client({
     dataPath: './.wwebjs_auth'
   }),
   puppeteer: {
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--disable-gpu',
-        '--single-process',
-        '--no-zygote',
-        '--disable-background-timer-throttling',
-        '--disable-backgrounding-occluded-windows',
-        '--disable-renderer-backgrounding',
-        '--disable-features=TranslateUI',
-        '--disable-ipc-flooding-protection',
-        '--no-first-run',
-        '--no-default-browser-check',
-        '--disable-crash-reporter',
-        '--disable-breakpad',
-        '--disable-extensions',
-        '--disable-plugins',
-        '--disable-sync',
-        '--metrics-recording-only',
-        '--mute-audio',
-        '--no-default-browser-check',
-        '--no-pings',
-        '--password-store=basic',
-        '--use-mock-keychain',
-        '--disable-background-networking',
-        '--disable-component-extensions-with-background-pages',
-        '--disable-features=TranslateUI,BlinkGenPropertyTrees',
-        '--enable-automation',
-        '--disable-infobars',
-        '--window-size=1280,720',
-        '--lang=ar-EG,ar',
-        '--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        '--disable-web-security',
-        '--disable-features=VizDisplayCompositor',
-        '--disable-features=OutOfBlinkCors',
-        '--disable-features=IsolateOrigins',
-        '--disable-site-isolation-trials',
-        '--disable-site-isolation-for-policy',
-        '--disable-frame-rate-limit',
-        '--disable-field-trial-config',
-        '--disable-back-forward-cache',
-        '--disable-hang-monitor',
-        '--disable-prompt-on-repost',
-        '--disable-client-side-phishing-detection',
-        '--disable-component-update',
-        '--disable-default-apps',
-        '--disable-domain-reliability',
-        '--disable-features=AudioServiceOutOfProcess',
-        '--disable-features=MediaSessionService',
-        '--force-color-profile=srgb',
-        '--metrics-recording-only',
-        '--no-report-upload',
-        '--disable-breakpad',
-        '--disable-features=RendererCodeIntegrity',
-        '--disable-features=SitePerProcess',
-        '--disable-features=IsolateOrigins,site-per-process',
-        '--disable-features=LazyFrameLoading',
-        '--disable-features=ScriptStreaming',
-        '--disable-features=RendererCodeIntegrity',
-        '--disable-features=SitePerProcess',
-        '--disable-features=IsolateOrigins,site-per-process',
-        '--remote-debugging-port=9222',
-        '--remote-debugging-address=0.0.0.0',
-        '--disable-features=BackForwardCache',
-        '--disable-features=ScriptStreaming',
-        '--disable-features=V8VmFuture',
-        '--disable-features=V8VmFuture2',
-        '--disable-features=BlinkGenPropertyTrees'
-      ],
-      executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome-stable'
-    },
+    headless: true,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-accelerated-2d-canvas',
+      '--disable-gpu',
+      '--single-process',
+      '--no-zygote',
+      '--disable-background-timer-throttling',
+      '--disable-backgrounding-occluded-windows',
+      '--disable-renderer-backgrounding',
+      '--disable-features=TranslateUI',
+      '--disable-ipc-flooding-protection',
+      '--no-first-run',
+      '--no-default-browser-check',
+      '--disable-crash-reporter',
+      '--disable-breakpad',
+      '--disable-extensions',
+      '--disable-plugins',
+      '--disable-sync',
+      '--metrics-recording-only',
+      '--mute-audio',
+      '--no-default-browser-check',
+      '--no-pings',
+      '--password-store=basic',
+      '--use-mock-keychain',
+      '--disable-background-networking',
+      '--disable-component-extensions-with-background-pages',
+      '--disable-features=TranslateUI,BlinkGenPropertyTrees',
+      '--enable-automation',
+      '--disable-infobars',
+      '--window-size=1280,720',
+      '--lang=ar-EG,ar',
+      '--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      '--disable-web-security',
+      '--disable-features=VizDisplayCompositor',
+      '--disable-features=OutOfBlinkCors',
+      '--disable-features=IsolateOrigins',
+      '--disable-site-isolation-trials',
+      '--disable-site-isolation-for-policy',
+      '--disable-frame-rate-limit',
+      '--disable-field-trial-config',
+      '--disable-back-forward-cache',
+      '--disable-hang-monitor',
+      '--disable-prompt-on-repost',
+      '--disable-client-side-phishing-detection',
+      '--disable-component-update',
+      '--disable-default-apps',
+      '--disable-domain-reliability',
+      '--disable-features=AudioServiceOutOfProcess',
+      '--disable-features=MediaSessionService',
+      '--force-color-profile=srgb',
+      '--metrics-recording-only',
+      '--no-report-upload',
+      '--disable-breakpad',
+      '--disable-features=RendererCodeIntegrity',
+      '--disable-features=SitePerProcess',
+      '--disable-features=IsolateOrigins,site-per-process',
+      '--disable-features=LazyFrameLoading',
+      '--disable-features=ScriptStreaming',
+      '--disable-features=RendererCodeIntegrity',
+      '--disable-features=SitePerProcess',
+      '--disable-features=IsolateOrigins,site-per-process',
+      '--remote-debugging-port=9222',
+      '--remote-debugging-address=0.0.0.0',
+      '--disable-features=BackForwardCache',
+      '--disable-features=ScriptStreaming',
+      '--disable-features=V8VmFuture',
+      '--disable-features=V8VmFuture2',
+      '--disable-features=BlinkGenPropertyTrees'
+    ],
+    executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome-stable'
+  },
+  webVersionCache: {
+    type: 'remote',
+    remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html'
   }
 });
 
@@ -127,16 +130,16 @@ client.on('qr', (qr) => {
 
 client.on('ready', async () => {
   console.log('\n[OK] Bot is ready and logged in!');
-  console.log(`[BOT] Bot name: ${BOT_NAME}`);
-  console.log(`[TIME] Scheduled to run at: ${CRON_SCHEDULE} (${TIMEZONE})`);
+  console.log('[BOT] Bot name: ' + BOT_NAME);
+  console.log('[TIME] Scheduled to run at: ' + CRON_SCHEDULE + ' (' + TIMEZONE + ')');
   isReady = true;
-  
+
   // Run immediately on startup for testing (optional)
   if (process.env.RUN_ON_START === 'true') {
     console.log('[RUN] RUN_ON_START=true - Running reminders now...');
     await sendRentReminders();
   }
-  
+
   // Schedule the cron job
   scheduleCronJob();
 });
@@ -165,17 +168,17 @@ client.on('message_ack', (msg, ack) => {
 // ============================================================
 
 /**
- * Send rent reminders to all unpaid tenants who have not received one yet
+ * Send rent reminders to all unpaid tenants who haven't received one yet
  */
 async function sendRentReminders() {
   if (!isReady) {
     console.log('[WAIT] Bot not ready yet, skipping...');
     return;
   }
-  
+
   console.log('\n[SCAN] Checking for unpaid tenants...');
   const startTime = Date.now();
-  
+
   try {
     // 1. Get all active unpaid tenants
     const { data: tenants, error: tenantsError } = await supabase
@@ -183,26 +186,26 @@ async function sendRentReminders() {
       .select('id, name, phone, room_id, building_id, due_date')
       .eq('status', 'active')
       .eq('payment_status', 'unpaid');
-    
+
     if (tenantsError) throw tenantsError;
-    
+
     if (!tenants || tenants.length === 0) {
       console.log('[OK] No unpaid tenants found');
       return;
     }
-    
+
     console.log('[LIST] Found ' + tenants.length + ' unpaid tenant(s)');
-    
+
     // 2. Get room numbers for room_id mapping
     const roomIds = [...new Set(tenants.map(t => t.room_id).filter(Boolean))];
     const { data: rooms, error: roomsError } = await supabase
       .from('rooms')
       .select('id, room_number')
       .in('id', roomIds);
-    
+
     if (roomsError) throw roomsError;
     const roomMap = Object.fromEntries(rooms.map(r => [r.id, r.room_number]));
-    
+
     // 3. Get whatsapp_logs to check who already received a debt_reminder
     const tenantIds = tenants.map(t => t.id);
     const { data: logs, error: logsError } = await supabase
@@ -211,35 +214,35 @@ async function sendRentReminders() {
       .eq('message_type', 'debt_reminder')
       .eq('status', 'sent')
       .in('tenant_id', tenantIds);
-    
+
     if (logsError) throw logsError;
-    
+
     const sentTenantIds = new Set(logs.map(l => l.tenant_id));
     console.log('[LOG] ' + sentTenantIds.size + ' tenant(s) already received a reminder');
-    
-    // 4. Filter to only those who have not received a reminder
+
+    // 4. Filter to only those who haven't received a reminder
     const tenantsToNotify = tenants.filter(t => !sentTenantIds.has(t.id));
-    
+
     if (tenantsToNotify.length === 0) {
       console.log('[OK] All unpaid tenants have already been notified');
       return;
     }
-    
+
     console.log('[SEND] Sending reminders to ' + tenantsToNotify.length + ' tenant(s)...');
-    
+
     // 5. Send messages
     let sent = 0, failed = 0, skipped = 0;
-    
+
     for (const tenant of tenantsToNotify) {
       if (!tenant.phone || tenant.phone.trim() === '') {
         console.log('[SKIP] Skipping ' + tenant.name + ' - no phone number');
         skipped++;
         continue;
       }
-      
+
       const roomNum = tenant.room_id ? (roomMap[tenant.room_id] || '?') : '?';
       const message = 'عزيزي ' + tenant.name + ' (غرفة ' + roomNum + ')،\n\nهذا تذكير ودي بأن دفعة الإيجار مستحقة. يرجى سداد المبلغ في أقرب وقت ممكن.\n\nشكراً لتعاونكم.\nإدارة السكن';
-      
+
       // Format phone for WhatsApp
       const formattedPhone = formatPhoneForWhatsApp(tenant.phone);
       if (!formattedPhone) {
@@ -247,10 +250,10 @@ async function sendRentReminders() {
         skipped++;
         continue;
       }
-      
+
       try {
         await client.sendMessage(formattedPhone + '@c.us', message);
-        
+
         // Log success
         await supabase.from('whatsapp_logs').insert({
           tenant_id: tenant.id,
@@ -259,16 +262,16 @@ async function sendRentReminders() {
           status: 'sent',
           sent_at: new Date().toISOString()
         });
-        
+
         console.log('[OK] Sent to ' + tenant.name + ' (' + formattedPhone + ')');
         sent++;
-        
+
         // Rate limiting - 2 seconds between messages
         await new Promise(r => setTimeout(r, 2000));
-        
+
       } catch (err) {
         console.error('[ERROR] Failed to send to ' + tenant.name + ': ' + err.message);
-        
+
         // Log failure
         await supabase.from('whatsapp_logs').insert({
           tenant_id: tenant.id,
@@ -277,14 +280,14 @@ async function sendRentReminders() {
           status: 'failed',
           sent_at: new Date().toISOString()
         });
-        
+
         failed++;
       }
     }
-    
+
     const duration = ((Date.now() - startTime) / 1000).toFixed(1);
     console.log('\n[STATS] Summary: ' + sent + ' sent, ' + failed + ' failed, ' + skipped + ' skipped (' + duration + 's)');
-    
+
   } catch (error) {
     console.error('[ERROR] Error in sendRentReminders:', error.message);
   }
@@ -297,36 +300,36 @@ async function sendRentReminders() {
  */
 function formatPhoneForWhatsApp(phone) {
   if (!phone) return null;
-  
+
   // Clean the phone
   let cleaned = phone
     .replace(/[\s\-\(\)]/g, '')  // Remove spaces, dashes, parentheses
     .replace(/^\+/, '');         // Remove leading +
-  
+
   // Handle multiple numbers (take first valid Egyptian mobile)
   const parts = cleaned.split(/[\/\\,;]/);
-  
+
   for (const part of parts) {
     let num = part.trim();
-    
+
     // If starts with 0, replace with 20 (Egypt)
     if (num.startsWith('0')) {
       num = '20' + num.substring(1);
     }
     // If already starts with 20, good
     else if (!num.startsWith('20')) {
-      // If it is just 10 digits, assume Egypt
+      // If it's just 10 digits, assume Egypt
       if (/^1[0125]\d{8}$/.test(num)) {
         num = '20' + num;
       }
     }
-    
+
     // Validate: 20 + 10 digits starting with 10, 11, 12, 15
     if (/^201[0125]\d{8}$/.test(num)) {
       return num;
     }
   }
-  
+
   return null;
 }
 
@@ -342,7 +345,7 @@ function scheduleCronJob() {
     scheduled: true,
     timezone: TIMEZONE
   });
-  
+
   console.log('[CRON] Cron job scheduled: ' + CRON_SCHEDULE + ' (' + TIMEZONE + ')');
   return job;
 }
