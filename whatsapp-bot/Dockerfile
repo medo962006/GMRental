@@ -54,10 +54,9 @@ COPY index.js ./
 COPY .env.example ./
 
 # Create non-root user for security
-RUN groupadd -r botuser && useradd -r -g botuser botuser \
-    && mkdir -p /app/.wwebjs_auth \
-    && chown -R botuser:botuser /app/.wwebjs_auth \
-    && chown -R botuser:botuser /app
+RUN groupadd -r botuser && useradd -r -g botuser -m -d /home/botuser botuser \
+    && mkdir -p /app/.wwebjs_auth /home/botuser/.local/share/applications \
+    && chown -R botuser:botuser /app/.wwebjs_auth /home/botuser
 
 # Switch to non-root user
 USER botuser
