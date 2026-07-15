@@ -153,7 +153,7 @@ client.on('message_ack', (msg, ack) => {
 // ============================================================
 
 /**
- * Send rent reminders to all unpaid tenants who haven't received one yet
+ * Send rent reminders to all unpaid tenants who have not received one yet
  */
 async function sendRentReminders() {
   if (!isReady) {
@@ -205,7 +205,7 @@ async function sendRentReminders() {
     const sentTenantIds = new Set(logs.map(l => l.tenant_id));
     console.log('[LOG] ' + sentTenantIds.size + ' tenant(s) already received a reminder');
     
-    // 4. Filter to only those who haven't received a reminder
+    // 4. Filter to only those who have not received a reminder
     const tenantsToNotify = tenants.filter(t => !sentTenantIds.has(t.id));
     
     if (tenantsToNotify.length === 0) {
@@ -303,7 +303,7 @@ function formatPhoneForWhatsApp(phone) {
     }
     // If already starts with 20, good
     else if (!num.startsWith('20')) {
-      // If it's just 10 digits, assume Egypt
+      // If it is just 10 digits, assume Egypt
       if (/^1[0125]\d{8}$/.test(num)) {
         num = '20' + num;
       }
