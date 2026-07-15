@@ -2,7 +2,7 @@
 # Build: docker build -t hostel-whatsapp-bot .
 # Run: docker run -d --name hostel-bot --env-file .env -v ./data:/app/.wwebjs_auth hostel-whatsapp-bot
 
-FROM node:20-slim
+FROM node:22-slim
 
 # Install Chrome dependencies
 RUN apt-get update && apt-get install -y \
