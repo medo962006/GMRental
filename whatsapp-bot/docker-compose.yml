@@ -8,7 +8,7 @@ services:
     env_file:
       - .env
     volumes:
-      - ./data:/app/.wwebjs_auth
+      - whatsapp-auth:/app/.wwebjs_auth
     # Health check
     healthcheck:
       test: ["CMD", "pgrep", "-f", "node index.js"]
@@ -23,11 +23,5 @@ services:
           memory: 1G
           cpus: '0.5'
 
-# Optional: Add a log rotation sidecar
-# (requires docker-compose v2.20+ or manual setup)
-
-# Usage:
-# 1. Copy .env.example to .env and fill in values
-# 2. docker-compose up -d --build
-# 3. View logs: docker-compose logs -f
-# 4. Scan QR code from logs on first run
+volumes:
+  whatsapp-auth:
