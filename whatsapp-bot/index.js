@@ -1,34 +1,67 @@
 // index.js - WhatsApp Bot for Hostel Rent Reminders
-// Runs at 12 PM Egypt Time, sends reminders to unpaid tenants
-// Only sends once per tenant (tracks in whatsapp_logs)
-
 require('dotenv').config();
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const { createClient } = require('@supabase/supabase-js');
-const cron = require('node-cron');
 
-// ============================================================
-// CONFIGURATION
-// ============================================================
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const BOT_NAME = process.env.BOT_NAME || 'HostelManagerBot';
-const CRON_SCHEDULE = process.env.CRON_SCHEDULE || '0 12 * * *'; // 12 PM daily
-const TIMEZONE = process.env.TZ || 'Africa/Cairo';
+const TIMEZONE = process.env.TIMEZONE || 'Africa/Cairo';
+const CRON_SCHEDULE = process.env.CRON_SCHEDULE || '0 12 * * *';
+const RUN_ON_START = process.env.RUN_ON_START === 'true';
 
-// Validate config
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  console.error('[ERROR] Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in .env');
+  console.error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
   process.exit(1);
 }
 
-// Supabase client with service role (bypasses RLS)
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 // ============================================================
-// WHATSAPP CLIENT SETUP - MINIMAL CHROME CONFIG
+// BRUTE-FORCE CLEANUP
 // ============================================================
+function killProcesses() {
+  const { execSync } = require('child_process');
+  try {
+    execSync('pkill -f "chrome" 2>/dev/null || true');
+    execSync('pkill -f "chromium" 2>/dev/null || true');
+    execSync('pkill -f "google-chrome" 2>/dev/null || true');
+  } catch (e) {
+    // ignore
+  }
+}
+
+function cleanAuthDir(dir) {
+  const fs = require('fs');
+  const path = require('path');
+  if (fs.existsSync(dir)) {
+    try {
+      const files = fs.readdirSync(dir);
+      for (const file of files) {
+        try {
+          fs.unlinkSync(path.join(dir, file));
+        } catch (e) {
+          // ignore locked files
+        }
+      }
+      fs.rmdirSync(dir);
+      console.log('[CLEAN] Removed auth dir: ' + dir);
+    } catch (e) {
+      console.log('[CLEAN] Could not remove: ' + dir + ' (' + e.message + ')');
+    }
+  } else {
+    console.log('[CLEAN] Auth dir does not exist: ' + dir);
+  }
+}
+
+console.log('[START] Starting Hostel Manager WhatsApp Bot...');
+console.log('[CONFIG] Timezone: ' + TIMEZONE);
+console.log('[CONFIG] Schedule: ' + CRON_SCHEDULE + ' (12 PM Egypt Time)');
+
+killProcesses();
+cleanAuthDir('./.wwebjs_auth');
+
 const client = new Client({
   authStrategy: new LocalAuth({
     clientId: BOT_NAME,
@@ -41,25 +74,157 @@ const client = new Client({
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
       '--disable-gpu',
-      '--no-zygote',
-      '--single-process',
+      '--disable-accelerated-2d-canvas',
+      '--disable-background-networking',
+      '--disable-background-timer-throttling',
+      '--disable-client-side-phishing-detection',
+      '--disable-component-extensions-with-background-pages',
+      '--disable-default-apps',
+      '--disable-extensions',
+      '--disable-features=TranslateUI',
+      '--disable-hang-monitor',
+      '--disable-ipc-flooding-protection',
+      '--disable-notifications',
+      '--disable-offer-store-unmasked-wallet-cards',
+      '--disable-popup-blocking',
+      '--disable-prompt-on-repost',
+      '--disable-renderer-backgrounding',
+      '--disable-sync',
+      '--disable-translate',
+      '--disable-windows10-custom-titlebar',
+      '--enable-automation',
+      '--enable-blink-features=IdleDetection',
+      '--enable-logging',
+      '--force-color-profile=srgb',
+      '--metrics-recording-only',
+      '--mute-audio',
+      '--no-first-run',
+      '--password-store=basic',
+      '--use-mock-keychain',
       '--disable-web-security',
       '--disable-site-isolation-trials',
       '--disable-features=IsolateOrigins,site-per-process',
-      '--disable-features=LazyFrameLoading,ScriptStreaming,SitePerProcess,IsolateOrigins,BackForwardCache,ScriptStreaming,V8VmFuture,V8VmFuture2,BlinkGenPropertyTrees,NavigationInitiator,FrameLoadingPaint,VizDisplayCompositor,AudioServiceOutOfProcess,MediaSessionService,RendererCodeIntegrity,SitePerProcess,IsolateOrigins,BackForwardCache,ScriptStreaming,V8VmFuture,V8VmFuture2,BlinkGenPropertyTrees,NavigationInitiator,FrameLoadingPaint,VizDisplayCompositor,AudioServiceOutOfProcess,MediaSessionService,RendererCodeIntegrity,SitePerProcess,IsolateOrigins',
       '--remote-debugging-port=9222',
       '--remote-debugging-address=0.0.0.0',
     ],
-    executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome-stable',
+    executablePath: '/usr/bin/google-chrome-stable',
   },
-  webVersionCache: {
-    type: 'remote',
-    remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html'
-  },
-  authTimeoutMs: 120000,
-  qrTimeoutMs: 60000,
+  authTimeoutMs: 180000,
+  qrTimeoutMs: 90000,
   restartOnAuthFail: true,
 });
+
+// ============================================================
+// MESSAGE SENDING
+// ============================================================
+async function sendRentReminders() {
+  console.log('\n[SEND] Running reminders...');
+
+  const { data: tenants, error: tenantsError } = await supabase
+    .from('tenants')
+    .select('id, name, phone, room_id, building_id, due_date')
+    .eq('status', 'active')
+    .eq('payment_status', 'unpaid');
+
+  if (tenantsError) throw tenantsError;
+  if (!tenants || tenants.length === 0) {
+    console.log('[SEND] No unpaid tenants found');
+    return;
+  }
+
+  console.log('[SEND] Found ' + tenants.length + ' unpaid tenant(s)');
+
+  const roomIds = [...new Set(tenants.map(t => t.room_id).filter(Boolean))];
+  const { data: rooms, error: roomsError } = await supabase
+    .from('rooms')
+    .select('id, room_number')
+    .in('id', roomIds);
+
+  if (roomsError) throw roomsError;
+  const roomMap = Object.fromEntries(rooms.map(r => [r.id, r.room_number]));
+
+  const tenantIds = tenants.map(t => t.id);
+  const { data: logs, error: logsError } = await supabase
+    .from('whatsapp_logs')
+    .select('tenant_id')
+    .eq('message_type', 'debt_reminder')
+    .eq('status', 'sent')
+    .in('tenant_id', tenantIds);
+
+  if (logsError) throw logsError;
+  const sentTenantIds = new Set(logs.map(l => l.tenant_id));
+  console.log('[SEND] ' + sentTenantIds.size + ' already received reminder');
+
+  const tenantsToNotify = tenants.filter(t => !sentTenantIds.has(t.id));
+  if (tenantsToNotify.length === 0) {
+    console.log('[SEND] All unpaid tenants already notified');
+    return;
+  }
+
+  console.log('[SEND] Sending to ' + tenantsToNotify.length + ' tenant(s)...');
+
+  let sent = 0, failed = 0, skipped = 0;
+
+  for (const tenant of tenantsToNotify) {
+    if (!tenant.phone || tenant.phone.trim() === '') {
+      console.log('[SKIP] ' + tenant.name + ' - no phone');
+      skipped++;
+      continue;
+    }
+
+    const roomNum = tenant.room_id ? (roomMap[tenant.room_id] || '?') : '?';
+    const message = 'عزيزي ' + tenant.name + ' (غرفة ' + roomNum + ')،\n\nهذا تذكير ودي بأن دفعة الإيجار مستحقة. يرجى سداد المبلغ في أقرب وقت ممكن.\n\nشكراً لتعاونكم.\nإدارة السكن';
+
+    let formattedPhone = tenant.phone
+      .replace(/[\s\-\(\)]/g, '')
+      .replace(/^\+/, '');
+    if (formattedPhone.startsWith('0')) {
+      formattedPhone = '20' + formattedPhone.substring(1);
+    }
+
+    if (!/^201[0125]\d{8}$/.test(formattedPhone)) {
+      console.log('[SKIP] ' + tenant.name + ' - invalid phone: ' + tenant.phone);
+      skipped++;
+      continue;
+    }
+
+    try {
+      await client.sendMessage(formattedPhone + '@c.us', message);
+      await supabase.from('whatsapp_logs').insert({
+        tenant_id: tenant.id,
+        message_type: 'debt_reminder',
+        message_body: message,
+        status: 'sent',
+        sent_at: new Date().toISOString()
+      });
+      console.log('[OK] Sent to ' + tenant.name + ' (' + formattedPhone + ')');
+      sent++;
+      await new Promise(r => setTimeout(r, 2000));
+    } catch (err) {
+      console.error('[ERROR] Failed to send to ' + tenant.name + ': ' + err.message);
+      await supabase.from('whatsapp_logs').insert({
+        tenant_id: tenant.id,
+        message_type: 'debt_reminder',
+        message_body: message,
+        status: 'failed',
+        sent_at: new Date().toISOString()
+      });
+      failed++;
+    }
+  }
+
+  console.log('\n[SEND] Summary: ' + sent + ' sent, ' + failed + ' failed, ' + skipped + ' skipped');
+}
+
+// ============================================================
+// CRON SCHEDULING
+// ============================================================
+let cronJob = null;
+
+function startCron() {
+  console.log('\n[CRON] Scheduling daily at ' + CRON_SCHEDULE + ' (' + TIMEZONE + ')');
+  console.log('[CRON] Waiting for next scheduled run...');
+}
 
 // ============================================================
 // EVENT HANDLERS
@@ -74,14 +239,13 @@ client.on('ready', async () => {
   console.log('\n[OK] Bot is ready and logged in!');
   console.log('[BOT] Bot name: ' + BOT_NAME);
   console.log('[TIME] Scheduled to run at: ' + CRON_SCHEDULE + ' (' + TIMEZONE + ')');
-  isReady = true;
 
-  if (process.env.RUN_ON_START === 'true') {
+  if (RUN_ON_START) {
     console.log('[RUN] RUN_ON_START=true - Running reminders now...');
     await sendRentReminders();
   }
 
-  scheduleCronJob();
+  startCron();
 });
 
 client.on('authenticated', () => {
@@ -90,238 +254,33 @@ client.on('authenticated', () => {
 
 client.on('auth_failure', (msg) => {
   console.error('[AUTH-ERROR] Authentication failed:', msg);
+  console.log('[AUTH] Restarting in 5 seconds...');
+  setTimeout(() => process.exit(1), 5000);
 });
 
 client.on('disconnected', (reason) => {
-  console.log('[DISCONNECTED] Client disconnected:', reason);
-  isReady = false;
+  console.log('[AUTH] Disconnected:', reason);
+  console.log('[AUTH] Restarting in 5 seconds...');
+  setTimeout(() => process.exit(1), 5000);
 });
 
-client.on('message_ack', (msg, ack) => {
-  if (ack < 0) {
-    console.warn('[WARN] Message failed (ack: ' + ack + '): ' + msg.id._serialized);
+client.on('loading_screen', (percent, message) => {
+  console.log('[LOAD] ' + Math.round(percent) + '% - ' + message);
+});
+
+client.on('message', async (msg) => {
+  if (msg.body === '!ping') {
+    msg.reply('pong');
   }
 });
 
 // ============================================================
-// CORE FUNCTIONS
+// STARTUP
 // ============================================================
-
-async function sendRentReminders() {
-  if (!isReady) {
-    console.log('[WAIT] Bot not ready yet, skipping...');
-    return;
-  }
-
-  console.log('\n[SCAN] Checking for unpaid tenants...');
-  const startTime = Date.now();
-
-  try {
-    const { data: tenants, error: tenantsError } = await supabase
-      .from('tenants')
-      .select('id, name, phone, room_id, building_id, due_date')
-      .eq('status', 'active')
-      .eq('payment_status', 'unpaid');
-
-    if (tenantsError) throw tenantsError;
-
-    if (!tenants || tenants.length === 0) {
-      console.log('[OK] No unpaid tenants found');
-      return;
-    }
-
-    console.log('[LIST] Found ' + tenants.length + ' unpaid tenant(s)');
-
-    const roomIds = [...new Set(tenants.map(t => t.room_id).filter(Boolean))];
-    const { data: rooms, error: roomsError } = await supabase
-      .from('rooms')
-      .select('id, room_number')
-      .in('id', roomIds);
-
-    if (roomsError) throw roomsError;
-    const roomMap = Object.fromEntries(rooms.map(r => [r.id, r.room_number]));
-
-    const tenantIds = tenants.map(t => t.id);
-    const { data: logs, error: logsError } = await supabase
-      .from('whatsapp_logs')
-      .select('tenant_id')
-      .eq('message_type', 'debt_reminder')
-      .eq('status', 'sent')
-      .in('tenant_id', tenantIds);
-
-    if (logsError) throw logsError;
-
-    const sentTenantIds = new Set(logs.map(l => l.tenant_id));
-    console.log('[LOG] ' + sentTenantIds.size + ' tenant(s) already received a reminder');
-
-    const tenantsToNotify = tenants.filter(t => !sentTenantIds.has(t.id));
-
-    if (tenantsToNotify.length === 0) {
-      console.log('[OK] All unpaid tenants have already been notified');
-      return;
-    }
-
-    console.log('[SEND] Sending reminders to ' + tenantsToNotify.length + ' tenant(s)...');
-
-    let sent = 0, failed = 0, skipped = 0;
-
-    for (const tenant of tenantsToNotify) {
-      if (!tenant.phone || tenant.phone.trim() === '') {
-        console.log('[SKIP] Skipping ' + tenant.name + ' - no phone number');
-        skipped++;
-        continue;
-      }
-
-      const roomNum = tenant.room_id ? (roomMap[tenant.room_id] || '?') : '?';
-      const message = 'عزيزي ' + tenant.name + ' (غرفة ' + roomNum + ')،\n\nهذا تذكير ودي بأن دفعة الإيجار مستحقة. يرجى سداد المبلغ في أقرب وقت ممكن.\n\nشكراً لتعاونكم.\nإدارة السكن';
-
-      const formattedPhone = formatPhoneForWhatsApp(tenant.phone);
-      if (!formattedPhone) {
-        console.log('[SKIP] Skipping ' + tenant.name + ' - invalid phone: ' + tenant.phone);
-        skipped++;
-        continue;
-      }
-
-      try {
-        await client.sendMessage(formattedPhone + '@c.us', message);
-
-        await supabase.from('whatsapp_logs').insert({
-          tenant_id: tenant.id,
-          message_type: 'debt_reminder',
-          message_body: message,
-          status: 'sent',
-          sent_at: new Date().toISOString()
-        });
-
-        console.log('[OK] Sent to ' + tenant.name + ' (' + formattedPhone + ')');
-        sent++;
-
-        await new Promise(r => setTimeout(r, 2000));
-
-      } catch (err) {
-        console.error('[ERROR] Failed to send to ' + tenant.name + ': ' + err.message);
-
-        await supabase.from('whatsapp_logs').insert({
-          tenant_id: tenant.id,
-          message_type: 'debt_reminder',
-          message_body: message,
-          status: 'failed',
-          sent_at: new Date().toISOString()
-        });
-
-        failed++;
-      }
-    }
-
-    const duration = ((Date.now() - startTime) / 1000).toFixed(1);
-    console.log('\n[STATS] Summary: ' + sent + ' sent, ' + failed + ' failed, ' + skipped + ' skipped (' + duration + 's)');
-
-  } catch (error) {
-    console.error('[ERROR] Error in sendRentReminders:', error.message);
-  }
-}
-
-function formatPhoneForWhatsApp(phone) {
-  if (!phone) return null;
-
-  let cleaned = phone
-    .replace(/[\s\-\(\)]/g, '')
-    .replace(/^\+/, '');
-
-  const parts = cleaned.split(/[\/\\,;]/);
-
-  for (const part of parts) {
-    let num = part.trim();
-
-    if (num.startsWith('0')) {
-      num = '20' + num.substring(1);
-    }
-    else if (!num.startsWith('20')) {
-      if (/^1[0125]\d{8}$/.test(num)) {
-        num = '20' + num;
-      }
-    }
-
-    if (/^201[0125]\d{8}$/.test(num)) {
-      return num;
-    }
-  }
-
-  return null;
-}
-
-function scheduleCronJob() {
-  const job = cron.schedule(CRON_SCHEDULE, async () => {
-    console.log('\n[CRON] [' + new Date().toLocaleString('en-EG', { timeZone: TIMEZONE }) + '] Running scheduled rent reminders...');
-    await sendRentReminders();
-  }, {
-    scheduled: true,
-    timezone: TIMEZONE
-  });
-
-  console.log('[CRON] Cron job scheduled: ' + CRON_SCHEDULE + ' (' + TIMEZONE + ')');
-  return job;
-}
-
-// ============================================================
-// START THE BOT - LONG DELAY FOR CHROME STABILITY
-// ============================================================
-
-console.log('[START] Starting Hostel Manager WhatsApp Bot...');
-console.log('[CONFIG] Timezone: ' + TIMEZONE);
-console.log('[CONFIG] Schedule: ' + CRON_SCHEDULE + ' (12 PM Egypt Time)');
-
-const fs = require('fs');
-const path = require('path');
-const authDir = path.join(__dirname, '.wwebjs_auth');
-
-// Aggressive cleanup - remove entire auth directory if it has lock issues
-function cleanAuthDir() {
-  if (!fs.existsSync(authDir)) {
-    fs.mkdirSync(authDir, { recursive: true });
-    return;
-  }
-
-  const files = fs.readdirSync(authDir);
-  for (const file of files) {
-    const filePath = path.join(authDir, file);
-    try {
-      const stat = fs.statSync(filePath);
-      if (stat.isFile() || stat.isSymbolicLink()) {
-        fs.unlinkSync(filePath);
-      } else if (stat.isDirectory()) {
-        fs.rmSync(filePath, { recursive: true, force: true });
-      }
-    } catch (e) {
-      console.log('[INIT] Could not remove ' + file + ': ' + e.message);
-    }
-  }
-  console.log('[INIT] Cleaned auth directory');
-}
-
-cleanAuthDir();
-
 console.log('[INIT] Waiting 10 seconds for Chrome to stabilize...');
-
-async function init() {
-  await new Promise(r => setTimeout(r, 10000));
-
+setTimeout(() => {
   client.initialize().catch(err => {
-    console.error('[ERROR] Failed to initialize:', err);
+    console.error('[INIT] Initialize error:', err);
     process.exit(1);
   });
-}
-
-init();
-
-process.on('SIGINT', async () => {
-  console.log('\n[SHUTDOWN] Shutting down...');
-  await client.destroy();
-  process.exit(0);
-});
-
-process.on('SIGTERM', async () => {
-  console.log('\n[SHUTDOWN] Shutting down...');
-  await client.destroy();
-  process.exit(0);
-});
+}, 10000);
