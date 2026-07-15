@@ -38,7 +38,11 @@ class InsuranceLedger {
   bool get hasRemaining => remainingBalance > 0;
   bool get isOverdue {
     if (dueDateForRemaining == null) return false;
-    return DateTime.now().isAfter(dueDateForRemaining!);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final dueDay = DateTime(dueDateForRemaining!.year, dueDateForRemaining!.month, dueDateForRemaining!.day);
+    // Overdue when due date is ON OR BEFORE today.
+    return !dueDay.isAfter(today);
   }
 
   InsuranceLedger copyWith({

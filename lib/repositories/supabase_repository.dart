@@ -248,17 +248,25 @@ class SupabaseRepository {
   }
 
   Future<void> markTenantPaid(String id) async {
-    // Simply mark as paid — due_date stays unchanged (admin sets it manually)
+    // Mark as paid AND advance due_date by one month so auto-update won't flip it back
+    // on the same day (paying on the due date is on time, and should stay paid).
+    final tenantData = await _client.from('tenants').select('due_date').eq('id', id).single();
+    final dueDateStr = tenantData['due_date'] as String?;
+    String? newDueDateStr;
+
+    if (dueDateStr != null) {
+      final dueDate = DateTime.parse(dueDateStr);
+      final nextMonth = DateTime(dueDate.year, dueDate.month + 1, dueDate.day);
+      newDueDateStr = '${nextMonth.year}-${nextMonth.month.toString().padLeft(2, '0')}-${nextMonth.day.toString().padLeft(2, '0')}';
+    }
+
     await _client.from('tenants').update({
       'payment_status': 'paid',
+      if (newDueDateStr != null) 'due_date': newDueDateStr,
     }).eq('id', id);
   }
 
   Future<void> markTenantUnpaid(String id) async {
-    // Get current tenant to find due_date
-    final data = await _client.from('tenants').select('due_date').eq('id', id).single();
-    final dueDateStr = data['due_date'] as String?;
-
     // Set due_date to today so it's immediately overdue
     final today = DateTime.now();
     final newDue = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
@@ -589,7 +597,11 @@ class SupabaseRepository {
     final overdueTenants = tenants.where((t) {
       if (t.isPaid) return false;
       if (t.dueDate == null) return false;
-      return t.dueDate!.isBefore(now);
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final dueDay = DateTime(t.dueDate!.year, t.dueDate!.month, t.dueDate!.day);
+      // Overdue when due date is ON OR BEFORE today.
+      return !dueDay.isAfter(today);
     }).toList();
 
     final totalRentOverdue = overdueTenants.fold(0.0, (sum, t) => sum + t.insuranceAmount);
@@ -629,12 +641,12 @@ class SupabaseRepository {
   /// Auto-update payment_status for all tenants based on due_date.
   ///
   /// Runs once on app startup:
-  ///   1. PAID tenants whose due_date is strictly BEFORE today → flip to
-  ///      unpaid (do not flip on the exact due day — paying on the due day
-  ///      is on time).
+  ///   1. PAID tenants whose due_date is ON OR BEFORE today → flip to
+  ///      unpaid (paying on the due day is on time, but after the day ends
+  ///      they become overdue; admin must advance due_date when marking paid).
   ///   2. UNPAID tenants with a stale due_date → reset due_date to today so
-  ///      the overdue countdown restarts from today instead of counting days
-  ///      from the original missed date.
+  ///      the overdue countdown restarts from today instead of counting from
+  ///      the original missed date.
   ///
   /// Does NOT flip unpaid → paid (admin sets that manually via markTenantPaid).
   Future<int> autoUpdatePaymentStatus({int? buildingId}) async {
@@ -650,10 +662,11 @@ class SupabaseRepository {
     for (final t in tenants) {
       if (t.dueDate == null) continue;
 
-      // Compare at day granularity: a tenant is past due only when their
-      // due_date calendar day is strictly before today's calendar day.
+      // Compare at day granularity: a tenant is past due when their
+      // due_date calendar day is ON OR BEFORE today's calendar day.
+      // (Paying on the due day is on time, but once the day passes they become overdue.)
       final dueDay = DateTime(t.dueDate!.year, t.dueDate!.month, t.dueDate!.day);
-      final isPastDue = dueDay.isBefore(today);
+      final isPastDue = !dueDay.isAfter(today); // dueDay <= today
 
       if (t.isPaid && isPastDue) {
         // PAST-DUE + still marked paid → flip to unpaid. Keep the original
