@@ -3,6 +3,7 @@ require('dotenv').config();
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const { createClient } = require('@supabase/supabase-js');
+const cron = require('node-cron');
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -115,14 +116,66 @@ const client = new Client({
 });
 
 // ============================================================
-// MESSAGE SENDING
+// HELPER: Get current billing period (e.g., "October 2025")
+// ============================================================
+function getBillingPeriod(date = new Date()) {
+  const months = ['January', 'February', 'March', 'April', 'May', 'June', 
+                  'July', 'August', 'September', 'October', 'November', 'December'];
+  return months[date.getMonth()] + ' ' + date.getFullYear();
+}
+
+function formatDate(date = new Date()) {
+  return date.toLocaleDateString('en-GB', { timeZone: TIMEZONE, day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+// ============================================================
+// BILINGUAL MESSAGE TEMPLATE
+// ============================================================
+function buildMessage(tenant, roomNumber, amount, billingPeriod, todayStr) {
+  const currencySymbol = 'LE ';
+  const bankName = 'Ahmed\'s Hostel Bank';
+  const accountNumber = '1234567890';
+
+  const arMessage = 
+    'مرحبًا ! 👋\n\n' +
+    'تذكير تلقائي سريع بأن إيجار شهر ' + billingPeriod + ' مستحق اليوم (' + todayStr + ').\n\n' +
+    '📌 تفاصيل الدفع:\n\n' +
+    'المبلغ المستحق: ' + currencySymbol + amount + '\n\n' +
+    'الغرفة/السرير: ' + roomNumber + '\n\n' +
+    '💳 طريقة الدفع:\n' +
+    'يمكنك الدفع بسهولة عبر التحويل إلى ' + bankName + ' (حساب رقم: ' + accountNumber + ') أو تفضل بزيارة مكتب الاستقبال.\n\n' +
+    'ملاحظة: إذا قمت بالتحويل اليوم بالفعل، يرجى الرد على هذه الرسالة بإرسال صورة من الإيصال لتحديث حسابك. شكراً لك!';
+
+  const enMessage = 
+    'Hey 👋!\n\n' +
+    'This is a quick, automated reminder that your rent for ' + billingPeriod + ' is due today (' + todayStr + ').\n\n' +
+    '📌 Payment Details:\n\n' +
+    'Amount Due: ' + currencySymbol + amount + '\n\n' +
+    'Room/Bed: ' + roomNumber + '\n\n' +
+    '💳 How to pay:\n' +
+    'You can make a quick transfer to ' + bankName + ' (Account: ' + accountNumber + ') or stop by the front desk.\n\n' +
+    'Note: If you have already made the transfer today, please reply to this message with a screenshot of your receipt so we can update your account. If you need any assistance, just let us know!\n\n' +
+    'Thank you, and have a great day! 😊';
+
+  return arMessage + '\n\n---\n\n' + enMessage;
+}
+
+// ============================================================
+// MESSAGE SENDING WITH PAYMENT CYCLE DEDUPLICATION
 // ============================================================
 async function sendRentReminders() {
-  console.log('\n[SEND] Running reminders...');
+  console.log('\n[SEND] Running reminders for billing period: ' + getBillingPeriod());
 
+  // Get current billing period key (e.g., "2025-10")
+  const now = new Date();
+  const billingPeriodKey = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+  const billingPeriodLabel = getBillingPeriod(now);
+  const todayStr = formatDate(now);
+
+  // 1. Get unpaid tenants
   const { data: tenants, error: tenantsError } = await supabase
     .from('tenants')
-    .select('id, name, phone, room_id, building_id, due_date')
+    .select('id, name, phone, room_id, building_id, due_date, rent_amount')
     .eq('status', 'active')
     .eq('payment_status', 'unpaid');
 
@@ -134,6 +187,7 @@ async function sendRentReminders() {
 
   console.log('[SEND] Found ' + tenants.length + ' unpaid tenant(s)');
 
+  // 2. Get room numbers
   const roomIds = [...new Set(tenants.map(t => t.room_id).filter(Boolean))];
   const { data: rooms, error: roomsError } = await supabase
     .from('rooms')
@@ -143,21 +197,34 @@ async function sendRentReminders() {
   if (roomsError) throw roomsError;
   const roomMap = Object.fromEntries(rooms.map(r => [r.id, r.room_number]));
 
+  // 3. Check DEDUPLICATION: already sent for THIS billing period
   const tenantIds = tenants.map(t => t.id);
   const { data: logs, error: logsError } = await supabase
     .from('whatsapp_logs')
-    .select('tenant_id')
+    .select('tenant_id, metadata')
     .eq('message_type', 'debt_reminder')
     .eq('status', 'sent')
     .in('tenant_id', tenantIds);
 
   if (logsError) throw logsError;
-  const sentTenantIds = new Set(logs.map(l => l.tenant_id));
-  console.log('[SEND] ' + sentTenantIds.size + ' already received reminder');
 
-  const tenantsToNotify = tenants.filter(t => !sentTenantIds.has(t.id));
+  // Filter logs for current billing period
+  const sentThisPeriod = new Set();
+  for (const log of logs) {
+    try {
+      const meta = typeof log.metadata === 'string' ? JSON.parse(log.metadata) : log.metadata;
+      if (meta && meta.billing_period_key === billingPeriodKey) {
+        sentThisPeriod.add(log.tenant_id);
+      }
+    } catch (e) {
+      // ignore malformed metadata
+    }
+  }
+  console.log('[SEND] ' + sentThisPeriod.size + ' already received reminder for ' + billingPeriodLabel);
+
+  const tenantsToNotify = tenants.filter(t => !sentThisPeriod.has(t.id));
   if (tenantsToNotify.length === 0) {
-    console.log('[SEND] All unpaid tenants already notified');
+    console.log('[SEND] All unpaid tenants already notified for ' + billingPeriodLabel);
     return;
   }
 
@@ -173,7 +240,8 @@ async function sendRentReminders() {
     }
 
     const roomNum = tenant.room_id ? (roomMap[tenant.room_id] || '?') : '?';
-    const message = 'عزيزي ' + tenant.name + ' (غرفة ' + roomNum + ')،\n\nهذا تذكير ودي بأن دفعة الإيجار مستحقة. يرجى سداد المبلغ في أقرب وقت ممكن.\n\nشكراً لتعاونكم.\nإدارة السكن';
+    const amount = tenant.rent_amount || 0;
+    const message = buildMessage(tenant, roomNum, amount, billingPeriodLabel, formatDate());
 
     let formattedPhone = tenant.phone
       .replace(/[\s\-\(\)]/g, '')
@@ -195,9 +263,15 @@ async function sendRentReminders() {
         message_type: 'debt_reminder',
         message_body: message,
         status: 'sent',
-        sent_at: new Date().toISOString()
+        sent_at: new Date().toISOString(),
+        metadata: {
+          billing_period_key: billingPeriodKey,
+          billing_period_label: billingPeriodLabel,
+          amount: amount,
+          room_number: roomNum
+        }
       });
-      console.log('[OK] Sent to ' + tenant.name + ' (' + formattedPhone + ')');
+      console.log('[OK] Sent to ' + tenant.name + ' (' + formattedPhone + ') | Room: ' + roomNum + ' | Amount: ' + currencySymbol + amount);
       sent++;
       await new Promise(r => setTimeout(r, 2000));
     } catch (err) {
@@ -207,7 +281,11 @@ async function sendRentReminders() {
         message_type: 'debt_reminder',
         message_body: message,
         status: 'failed',
-        sent_at: new Date().toISOString()
+        sent_at: new Date().toISOString(),
+        metadata: {
+          billing_period_key: billingPeriodKey,
+          error: err.message
+        }
       });
       failed++;
     }
@@ -217,12 +295,22 @@ async function sendRentReminders() {
 }
 
 // ============================================================
-// CRON SCHEDULING
+// CRON SCHEDULING with CATCH-UP
 // ============================================================
 let cronJob = null;
 
 function startCron() {
   console.log('\n[CRON] Scheduling daily at ' + CRON_SCHEDULE + ' (' + TIMEZONE + ')');
+  
+  // Schedule with timezone
+  cronJob = cron.schedule(CRON_SCHEDULE, async () => {
+    console.log('\n[CRON] Triggered at ' + new Date().toLocaleString('en-US', { timeZone: TIMEZONE }));
+    await sendRentReminders();
+  }, {
+    scheduled: true,
+    timezone: TIMEZONE
+  });
+  
   console.log('[CRON] Waiting for next scheduled run...');
 }
 
@@ -240,9 +328,28 @@ client.on('ready', async () => {
   console.log('[BOT] Bot name: ' + BOT_NAME);
   console.log('[TIME] Scheduled to run at: ' + CRON_SCHEDULE + ' (' + TIMEZONE + ')');
 
+  // CATCH-UP LOGIC: If RUN_ON_START or if we missed today's run, run now
   if (RUN_ON_START) {
     console.log('[RUN] RUN_ON_START=true - Running reminders now...');
     await sendRentReminders();
+  } else {
+    // Check if we already ran today
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: TIMEZONE }); // YYYY-MM-DD
+    const { data: todayLogs } = await supabase
+      .from('whatsapp_logs')
+      .select('id')
+      .eq('message_type', 'debt_reminder')
+      .eq('status', 'sent')
+      .gte('sent_at', today + 'T00:00:00')
+      .lte('sent_at', today + 'T23:59:59')
+      .limit(1);
+    
+    if (!todayLogs || todayLogs.length === 0) {
+      console.log('[CATCH-UP] No reminders sent today - running catch-up...');
+      await sendRentReminders();
+    } else {
+      console.log('[CATCH-UP] Already ran today - skipping');
+    }
   }
 
   startCron();
