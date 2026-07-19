@@ -26,6 +26,14 @@ class Tenant {
   final DateTime createdAt;
   @JsonKey(name: 'building_id')
   final int buildingId;
+  
+  // Car information
+  @JsonKey(name: 'has_car')
+  final bool hasCar;
+  @JsonKey(name: 'car_model')
+  final String? carModel;
+  @JsonKey(name: 'license_plate')
+  final String? licensePlate;
 
   const Tenant({
     required this.id,
@@ -41,6 +49,9 @@ class Tenant {
     this.leaseStartDate,
     required this.createdAt,
     this.buildingId = 1,
+    this.hasCar = false,
+    this.carModel,
+    this.licensePlate,
   });
 
   factory Tenant.fromJson(Map<String, dynamic> json) => _$TenantFromJson(json);
@@ -60,6 +71,9 @@ class Tenant {
     DateTime? leaseStartDate,
     DateTime? createdAt,
     int? buildingId,
+    bool? hasCar,
+    String? carModel,
+    String? licensePlate,
   }) {
     return Tenant(
       id: id ?? this.id,
@@ -75,6 +89,9 @@ class Tenant {
       leaseStartDate: leaseStartDate ?? this.leaseStartDate,
       createdAt: createdAt ?? this.createdAt,
       buildingId: buildingId ?? this.buildingId,
+      hasCar: hasCar ?? this.hasCar,
+      carModel: carModel ?? this.carModel,
+      licensePlate: licensePlate ?? this.licensePlate,
     );
   }
 

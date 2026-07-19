@@ -133,6 +133,9 @@ class SupabaseRepository {
       'payment_status': tenant.paymentStatus,
       'due_date': tenant.dueDate?.toIso8601String().split('T').first,
       'lease_start_date': tenant.leaseStartDate?.toIso8601String().split('T').first,
+      'has_car': tenant.hasCar,
+      'car_model': tenant.carModel,
+      'license_plate': tenant.licensePlate,
     };
 
     final data = await _client.from('tenants').insert(insertData).select().single();
@@ -175,6 +178,9 @@ class SupabaseRepository {
       'payment_status': tenant.paymentStatus,
       'due_date': tenant.dueDate?.toIso8601String().split('T').first,
       'lease_start_date': tenant.leaseStartDate?.toIso8601String().split('T').first,
+      'has_car': tenant.hasCar,
+      'car_model': tenant.carModel,
+      'license_plate': tenant.licensePlate,
     }).eq('id', tenant.id).select().single();
 
     final updated = Tenant.fromJson(data);

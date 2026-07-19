@@ -50,3 +50,15 @@ CREATE INDEX IF NOT EXISTS idx_whatsapp_logs_tenant ON whatsapp_logs(tenant_id);
 ALTER TABLE IF EXISTS task_routines DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS operational_costs DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS whatsapp_logs DISABLE ROW LEVEL SECURITY;
+
+-- ── 7: Car Information for Tenants ──────────────────────
+ALTER TABLE tenants 
+    ADD COLUMN IF NOT EXISTS has_car BOOLEAN DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS car_model VARCHAR(100),
+    ADD COLUMN IF NOT EXISTS license_plate VARCHAR(20);
+
+-- Index for car search
+CREATE INDEX IF NOT EXISTS idx_tenants_has_car ON tenants(has_car);
+CREATE INDEX IF NOT EXISTS idx_tenants_license_plate ON tenants(license_plate);
+CREATE INDEX IF NOT EXISTS idx_tenants_car_model ON tenants(car_model);
+
