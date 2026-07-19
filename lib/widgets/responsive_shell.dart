@@ -15,6 +15,7 @@ import '../screens/notifications_screen.dart';
 import '../screens/calendar_screen.dart';
 import '../screens/reception_history_screen.dart';
 import '../screens/tenants_screen.dart';
+import '../screens/cars_screen.dart';
 import '../models/admin_notification.dart';
 
 class ResponsiveShell extends ConsumerWidget {
@@ -30,6 +31,7 @@ class ResponsiveShell extends ConsumerWidget {
       DashboardScreen(),
       RoomsScreen(),
       TenantsScreen(),
+      CarsScreen(),
       CalendarScreen(),
       ReceptionHistoryScreen(),
       MasareefScreen(),
@@ -41,7 +43,7 @@ class ResponsiveShell extends ConsumerWidget {
     ];
 
     final navLabels = const [
-      'Dashboard', 'Rooms', 'Tenants', 'Calendar', 'History', 'Masareef', 'Tasks',
+      'Dashboard', 'Rooms', 'Tenants', 'Cars', 'Calendar', 'History', 'Masareef', 'Tasks',
       'Op. Costs', 'WhatsApp', 'Ta2meen', 'Alerts',
     ];
 
@@ -49,6 +51,7 @@ class ResponsiveShell extends ConsumerWidget {
       Icons.dashboard,
       Icons.bed,
       Icons.people,
+      Icons.directions_car,
       Icons.calendar_month,
       Icons.history,
       Icons.receipt_long,
@@ -149,7 +152,7 @@ class ResponsiveShell extends ConsumerWidget {
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                   color: isSelected ? AppColors.primary : AppColors.neutralDark,
                 )),
-            trailing: i == 7 && unreadCount > 0
+            trailing: i == 8 && unreadCount > 0
                 ? Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
@@ -184,7 +187,7 @@ class ResponsiveShell extends ConsumerWidget {
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                 fontSize: 14,
               )),
-          trailing: i == 7 && unreadCount > 0
+          trailing: i == 8 && unreadCount > 0
               ? Container(
                   padding: const EdgeInsets.all(6),
                   decoration: const BoxDecoration(
@@ -282,7 +285,7 @@ class ResponsiveShell extends ConsumerWidget {
               child: Center(
                 child: GestureDetector(
                   onTap: () {
-                    ref.read(selectedIndexProvider.notifier).state = 7;
+                    ref.read(selectedIndexProvider.notifier).state = 8;
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
