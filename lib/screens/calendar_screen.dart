@@ -310,12 +310,12 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           height: cellHeight,
           padding: const EdgeInsets.all(2),
           child: _buildDayCell(day, isToday, isSelected, tenantsDue),
-        ),
-      )));
-    }
+                  ),
+                ));
+              }
 
-    return Wrap(children: cells);
-  }
+              return Wrap(children: cells);
+        }
 
   Widget _buildDayCell(int day, bool isToday, bool isSelected, List<Tenant> tenantsDue) {
     Color? bgColor;
