@@ -1,6 +1,7 @@
 // lib/screens/calendar_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../config/app_theme.dart';
 import '../providers/app_providers.dart';
 import '../models/tenant.dart';
@@ -310,7 +311,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           padding: const EdgeInsets.all(2),
           child: _buildDayCell(day, isToday, isSelected, tenantsDue),
         ),
-      ));
+      )));
     }
 
     return Wrap(children: cells);
@@ -551,7 +552,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         children: [
                           if (dueTenants.isNotEmpty) ...[
-                            _sectionHeader('Due Today', AppColors.accent),
+                            _sectionHeader('Due Today', AppColors.accent,
+                                onWhatsApp: () => _sendWhatsAppToAll(dueTenants)),
                             ...dueTenants.map((t) => _tenantTile(t)),
                           ],
                           if (overdueTenants.isNotEmpty) ...[
@@ -569,7 +571,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     );
   }
 
-  Widget _sectionHeader(String title, Color color) {
+  Widget _sectionHeader(String title, Color color, {VoidCallback? onWhatsApp}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6, top: 4),
       child: Row(
@@ -591,9 +593,30 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
               color: color,
             ),
           ),
+          if (onWhatsApp != null) ...[
+            const Spacer(),
+            TextButton.icon(
+              onPressed: onWhatsApp,
+              icon: const Icon(Icons.chat, size: 16, color: Color(0xFF25D366)),
+              label: const Text('Send Reminders', style: TextStyle(fontSize: 11, color: Color(0xFF25D366))),
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF25D366),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  // Opens WhatsApp with the tenant's phone number
+  Future<void> _openWhatsApp(String phone) async {
+    final clean = phone.replaceAll(RegExp(r'[^\d]'), '');
+    final uri = Uri.parse('https://wa.me/$clean');
+    if (await canLaunchUrl(uri)) await launchUrl(uri);
   }
 
   Widget _tenantTile(Tenant tenant) {
@@ -648,6 +671,14 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
               ],
             ),
           ),
+          // WhatsApp button (only if tenant has a phone number)
+          if (tenant.phone.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.chat, color: Color(0xFF25D366), size: 20),
+              tooltip: 'Send WhatsApp reminder',
+              onPressed: () => _openWhatsApp(tenant.phone),
+              splashRadius: 20,
+            ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
@@ -666,6 +697,15 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _sendWhatsAppToAll(List<Tenant> tenants) async {
+    for (final t in tenants) {
+      if (t.phone.isNotEmpty) {
+        await _openWhatsApp(t.phone);
+        await Future.delayed(const Duration(seconds: 2));
+      }
+    }
   }
 
   String _formatSelectedDate(DateTime date) {
