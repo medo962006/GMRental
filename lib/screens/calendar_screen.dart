@@ -56,12 +56,9 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
       backgroundColor: AppColors.canvas,
       body: Column(
         children: [
-          // ── Header ──
           _buildHeader(isDesktop),
-          // ── Legend ──
           _buildLegend(),
           const SizedBox(height: 8),
-          // ── Calendar + Detail ──
           Expanded(
             child: isDesktop
                 ? Row(
@@ -85,9 +82,6 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     );
   }
 
-  // ════════════════════════════════════════════════════════
-  // HEADER
-  // ════════════════════════════════════════════════════════
   Widget _buildHeader(bool isDesktop) {
     final monthNames = [
       'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
@@ -113,7 +107,6 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
         bottom: false,
         child: Row(
           children: [
-            // Month nav
             IconButton(
               onPressed: _goToPrevMonth,
               icon: const Icon(Icons.chevron_left, size: 22),
@@ -154,7 +147,6 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
               ),
             ),
             const SizedBox(width: 8),
-            // Today button
             TextButton.icon(
               onPressed: _goToToday,
               icon: const Icon(Icons.today, size: 16),
@@ -170,9 +162,6 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     );
   }
 
-  // ════════════════════════════════════════════════════════
-  // LEGEND
-  // ════════════════════════════════════════════════════════
   Widget _buildLegend() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -207,18 +196,14 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     );
   }
 
-  // ════════════════════════════════════════════════════════
-  // CALENDAR GRID
-  // ════════════════════════════════════════════════════════
   Widget _buildCalendarGrid(AsyncValue<List<Tenant>> tenantsAsync) {
     final firstDay = _currentMonth;
     final lastDay = DateTime(_currentMonth.year, _currentMonth.month + 1, 0);
-    final startWeekday = firstDay.weekday; // 1=Mon, 7=Sun
+    final startWeekday = firstDay.weekday;
     final daysInMonth = lastDay.day;
     final today = DateTime.now();
     final todayNormalized = DateTime(today.year, today.month, today.day);
 
-    // Build a map: day → list of tenants due that day
     final Map<int, List<Tenant>> dueByDay = {};
     tenantsAsync.whenData((tenants) {
       for (final t in tenants) {
@@ -232,7 +217,6 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Column(
         children: [
-          // Day headers
           Padding(
             padding: const EdgeInsets.only(bottom: 4),
             child: Row(
@@ -249,12 +233,11 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                   .toList(),
             ),
           ),
-          // Calendar grid
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final cellWidth = constraints.maxWidth / 7;
-                final cellHeight = cellWidth * 1.1; // taller to fit tenant name chips
+                final cellHeight = cellWidth * 1.1;
                 final totalRows = ((daysInMonth + startWeekday - 1) / 7).ceil();
                 final gridHeight = totalRows * cellHeight;
 
@@ -286,12 +269,10 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   ) {
     final cells = <Widget>[];
 
-    // Empty cells before the first day
     for (int i = 1; i < startWeekday; i++) {
       cells.add(SizedBox(width: cellWidth, height: cellHeight));
     }
 
-    // Day cells
     for (int day = 1; day <= daysInMonth; day++) {
       final date = DateTime(_currentMonth.year, _currentMonth.month, day);
       final isToday = date == today;
@@ -310,12 +291,12 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           height: cellHeight,
           padding: const EdgeInsets.all(2),
           child: _buildDayCell(day, isToday, isSelected, tenantsDue),
-                  ),
-                ));
-              }
+        ),
+      ));
+    }
 
-              return Wrap(children: cells);
-        }
+    return Wrap(children: cells);
+  }
 
   Widget _buildDayCell(int day, bool isToday, bool isSelected, List<Tenant> tenantsDue) {
     Color? bgColor;
@@ -353,7 +334,6 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Day number
           Text(
             '$day',
             style: TextStyle(
@@ -366,7 +346,6 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                       : AppColors.neutralDark,
             ),
           ),
-          // Tenant name chips
           if (tenantsDue.isNotEmpty)
             Expanded(
               child: _buildTenantChips(tenantsDue),
@@ -377,7 +356,6 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   }
 
   Widget _buildTenantChips(List<Tenant> tenants) {
-    // Show up to 4 tenant name chips, then overflow indicator
     const maxChips = 4;
     final visible = tenants.take(maxChips).toList();
     final overflow = tenants.length - maxChips;
@@ -388,7 +366,6 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
       children: [
         ...visible.map((t) {
           final color = t.isPaid ? AppColors.success : AppColors.danger;
-          // Use first name only to fit in small space
           final firstWord = t.name.split(' ').first;
           return Container(
             width: double.infinity,
@@ -419,9 +396,6 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     );
   }
 
-  // ════════════════════════════════════════════════════════
-  // DAY DETAIL PANEL
-  // ════════════════════════════════════════════════════════
   Widget _buildDayDetail(AsyncValue<List<Tenant>> tenantsAsync) {
     if (_selectedDay == null) {
       return Center(
@@ -443,21 +417,16 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('Error: $e')),
       data: (tenants) {
-        // Find tenants whose due_date falls on the selected day of month
-        // Match by day-of-month only, so someone who moved in on the 22nd
-        // shows up on every 22nd regardless of month/year
         final dueTenants = tenants.where((t) {
           if (t.dueDate == null) return false;
           return t.dueDate!.day == selectedDate.day;
         }).toList();
 
-        // Sort: unpaid first, then paid
         dueTenants.sort((a, b) {
           if (a.isPaid != b.isPaid) return a.isPaid ? 1 : -1;
           return a.name.compareTo(b.name);
         });
 
-        // Also find overdue tenants (past due, not yet paid) — different day
         final overdueTenants = tenants.where((t) {
           if (t.dueDate == null || t.isPaid) return false;
           return t.dueDate!.isBefore(selectedDate) &&
@@ -481,7 +450,6 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -532,7 +500,6 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                   ],
                 ),
               ),
-              // Tenant list
               Expanded(
                 child: dueTenants.isEmpty && overdueTenants.isEmpty
                     ? Center(
@@ -612,7 +579,6 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     );
   }
 
-  // Opens WhatsApp with the tenant's phone number
   Future<void> _openWhatsApp(String phone) async {
     final clean = phone.replaceAll(RegExp(r'[^\d]'), '');
     final uri = Uri.parse('https://wa.me/$clean');
@@ -671,7 +637,6 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
               ],
             ),
           ),
-          // WhatsApp button (only if tenant has a phone number)
           if (tenant.phone.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.chat, color: Color(0xFF25D366), size: 20),
