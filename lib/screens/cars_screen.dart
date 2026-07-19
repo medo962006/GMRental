@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../config/app_config.dart';
 import '../models/tenant.dart';
 import '../providers/app_providers.dart';
 
