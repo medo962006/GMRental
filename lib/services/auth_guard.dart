@@ -1,13 +1,20 @@
 // lib/services/auth_guard.dart
-// Password gate for destructive CRUD actions + unique device code per device.
+// Password gate for app access + destructive CRUD actions + unique device code per device.
+import 'dart:convert';
 import 'dart:io';
+import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// The current admin password. Change this to rotate.
-const String adminPassword = 'admin123';
+/// SHA-256 hash of the app access password (no plaintext is stored, not even in comments).
+/// To rotate: replace with the sha256 hex digest of the new password.
+const String _appPasswordHash = '7c5b3a10721bf97ca100841e16e5618159bcada6df3f139cb04d519e58ccd097';
+
+/// Validates an app-access password attempt against the stored hash.
+bool verifyAppPassword(String input) =>
+    sha256.convert(utf8.encode(input.trim())).toString() == _appPasswordHash;
 
 /// Tracks whether the user has been authenticated this session.
 final authSessionProvider = StateProvider<bool>((ref) => false);
@@ -134,7 +141,7 @@ Future<bool> showPasswordDialog(BuildContext context, WidgetRef ref) async {
                         border: const OutlineInputBorder(),
                       ),
                       onSubmitted: (_) {
-                        if (ctrl.text.trim() == adminPassword) {
+                        if (verifyAppPassword(ctrl.text)) {
                           ref.read(authSessionProvider.notifier).state = true;
                           setDialogState(() {
                             success = true;
@@ -161,7 +168,7 @@ Future<bool> showPasswordDialog(BuildContext context, WidgetRef ref) async {
                 ),
                 FilledButton(
                   onPressed: () {
-                    if (ctrl.text.trim() == adminPassword) {
+                    if (verifyAppPassword(ctrl.text)) {
                       ref.read(authSessionProvider.notifier).state = true;
                       setDialogState(() {
                         success = true;

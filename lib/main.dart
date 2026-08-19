@@ -5,9 +5,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config/app_config.dart';
 import 'config/app_theme.dart';
-import 'widgets/responsive_shell.dart';
 import 'services/notification_service.dart';
 import 'providers/app_providers.dart';
+import 'screens/splash_screen.dart';
+import 'screens/login_screen.dart';
+import 'screens/home_screen.dart';
+import 'screens/settings_screen.dart';
+import 'screens/booking_success_screen.dart';
+import 'models/booking.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -56,7 +61,24 @@ class _HostelManagerAppState extends ConsumerState<HostelManagerApp> {
       title: 'Hostel Manager',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
-      home: const ResponsiveShell(),
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const SplashScreen(),
+        '/login': (context) => const LoginScreen(),
+        '/home': (context) => const HomeScreen(),
+        '/settings': (context) => const SettingsScreen(),
+      },
+      onGenerateRoute: (settings) {
+        // Handle booking success screen with argument
+        if (settings.name == '/booking-success') {
+          final booking = settings.arguments as Booking?;
+          if (booking == null) return null;
+          return MaterialPageRoute(
+            builder: (_) => BookingSuccessScreen(booking: booking),
+          );
+        }
+        return null;
+      },
     );
   }
 }

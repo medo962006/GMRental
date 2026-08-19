@@ -14,6 +14,7 @@ import '../models/admin_notification.dart';
 import '../models/changelog_entry.dart';
 import '../models/device_code.dart';
 import '../models/reception_history.dart';
+import '../models/booking.dart';
 
 class SupabaseRepository {
   final SupabaseClient _client = Supabase.instance.client;
@@ -1084,5 +1085,44 @@ class SupabaseRepository {
       'lease_status': 'ساري',
       'notes': 'Auto-added on tenant creation',
     });
+  }
+
+  // ════════════════════════════════════════════════════════
+  // BOOKINGS
+  // ════════════════════════════════════════════════════════
+
+  /// Cancel a booking by setting its status to 'cancelled'.
+  Future<void> cancelBooking(String bookingId) async {
+    await _client.from('bookings').update({
+      'status': 'cancelled',
+    }).eq('id', bookingId);
+  }
+
+  /// Stream all bookings, optionally filtered by building.
+  Stream<List<Booking>> watchBookings({int? buildingId}) {
+    var query = _client.from('bookings').stream(primaryKey: ['id']).order('created_at', ascending: false);
+    return query.map((data) {
+      final bookings = data.map((e) => Booking.fromJson(e)).toList();
+      if (buildingId != null) {
+        return bookings.where((b) => b.buildingId == buildingId).toList();
+      }
+      return bookings;
+    });
+  }
+
+  /// Fetch all bookings.
+  Future<List<Booking>> getBookings({int? buildingId}) async {
+    final data = await _client.from('bookings').select().order('created_at', ascending: false);
+    final bookings = (data as List).map((e) => Booking.fromJson(e)).toList();
+    if (buildingId != null) {
+      return bookings.where((b) => b.buildingId == buildingId).toList();
+    }
+    return bookings;
+  }
+
+  /// Create a new booking.
+  Future<Booking> createBooking(Booking booking) async {
+    final data = await _client.from('bookings').insert(booking.toJson()).select().single();
+    return Booking.fromJson(data);
   }
 }

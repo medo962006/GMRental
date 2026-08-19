@@ -42,10 +42,34 @@ process.on('unhandledRejection', (reason) => {
 // ============================================================
 function killProcesses() {
   const { execSync } = require('child_process');
+  const sessionDirPattern = 'session-' + BOT_NAME;
   try {
-    execSync('pkill -f "chrome" 2>/dev/null || true');
-    execSync('pkill -f "chromium" 2>/dev/null || true');
-    execSync('pkill -f "google-chrome" 2>/dev/null || true');
+    if (process.platform === 'win32') {
+      // On Windows, pkill is unavailable (it silently no-ops and leaves a stale
+      // Chrome holding the LocalAuth userDataDir lock). Kill ONLY the Chrome
+      // processes that belong to THIS bot's userDataDir (matched by the session dir
+      // in their command line) so we never touch the user's personal Chrome.
+      // We write a tiny .ps1 and run it via -File to avoid cmd.exe's single-quote /
+      // internal-pipe quoting pitfalls that break inline -Command strings.
+      const fs = require('fs');
+      const os = require('os');
+      const path = require('path');
+      const tmpPs = path.join(os.tmpdir(), 'kill_bot_chrome_' + process.pid + '.ps1');
+      const psScript =
+        "Get-CimInstance Win32_Process -Filter \"Name='chrome.exe' AND CommandLine LIKE '%" +
+        sessionDirPattern +
+        "%'\" | ForEach-Object { taskkill /F /PID $_.ProcessId }";
+      fs.writeFileSync(tmpPs, psScript);
+      try {
+        execSync('powershell -NoProfile -ExecutionPolicy Bypass -File "' + tmpPs + '"', { stdio: 'ignore' });
+      } finally {
+        try { fs.unlinkSync(tmpPs); } catch (e) { /* ignore */ }
+      }
+    } else {
+      execSync('pkill -f "chrome" 2>/dev/null || true');
+      execSync('pkill -f "chromium" 2>/dev/null || true');
+      execSync('pkill -f "google-chrome" 2>/dev/null || true');
+    }
   } catch (e) {
     // ignore
   }

@@ -35,6 +35,7 @@ dependencies:
 
   # Auth guard: local session storage
   shared_preferences: ^2.3.5
+  crypto: ^3.0.7
 
 dev_dependencies:
   flutter_test:
