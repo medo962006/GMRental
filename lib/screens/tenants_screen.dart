@@ -4,7 +4,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'dart:typed_data';
 
 import '../config/app_config.dart';
 import '../models/tenant.dart';
@@ -26,11 +28,13 @@ class _TenantsScreenState extends ConsumerState<TenantsScreen> with SingleTicker
   
   // Cars tab search
   String _carSearchQuery = '';
+  // ID cards tab search
+  String _idSearchQuery = '';
   
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -54,6 +58,7 @@ class _TenantsScreenState extends ConsumerState<TenantsScreen> with SingleTicker
           tabs: const [
             Tab(icon: Icon(Icons.people), text: 'Tenants'),
             Tab(icon: Icon(Icons.directions_car), text: 'Cars'),
+            Tab(icon: Icon(Icons.badge_outlined), text: 'IDs'),
           ],
         ),
       ),
@@ -65,6 +70,9 @@ class _TenantsScreenState extends ConsumerState<TenantsScreen> with SingleTicker
           
           // ── TAB 2: CARS ────────────────────────────────────
           _buildCarsTab(context, ref, tenantsAsync, isDesktop),
+
+          // ── TAB 3: ID CARDS ────────────────────────────────
+          _buildIdsTab(context, ref, tenantsAsync, isDesktop),
         ],
       ),
       floatingActionButton: _tabController.index == 0
@@ -206,6 +214,460 @@ class _TenantsScreenState extends ConsumerState<TenantsScreen> with SingleTicker
           ),
         ),
       ],
+    );
+  }
+
+  // ══════════════════════════════════════════════════════
+  // ID CARDS TAB
+  // ══════════════════════════════════════════════════════
+
+  Widget _buildIdsTab(BuildContext context, WidgetRef ref,
+      AsyncValue<List<Tenant>> tenantsAsync, bool isDesktop) {
+    final buildingId = ref.watch(currentBuildingIdProvider);
+    return Column(
+      children: [
+        // Search Bar — by room or tenant name
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: TextField(
+            decoration: InputDecoration(
+              labelText: 'Search by Room or Tenant Name',
+              hintText: 'e.g. 201 or Ahmed Ali',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: _idSearchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        setState(() => _idSearchQuery = '');
+                      },
+                    )
+                  : null,
+              border: const OutlineInputBorder(),
+            ),
+            onChanged: (value) {
+              setState(() => _idSearchQuery = value.trim().toLowerCase());
+            },
+          ),
+        ),
+        const Divider(height: 1),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(tenantsStreamProvider(buildingId));
+            },
+            child: tenantsAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (err, stack) => Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.error_outline, size: 48, color: Colors.red[300]),
+                    const SizedBox(height: 16),
+                    Text('Error loading tenants',
+                        style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 8),
+                    Text('$err', style: Theme.of(context).textTheme.bodySmall),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () => ref.invalidate(tenantsStreamProvider(buildingId)),
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+              data: (allTenants) {
+                // Show all active tenants so IDs can be added/retrieved easily
+                var tenants = allTenants
+                    .where((t) => t.status == 'active')
+                    .toList();
+
+                // Filter by room number or tenant name
+                if (_idSearchQuery.isNotEmpty) {
+                  tenants = tenants.where((t) {
+                    final name = t.name.toLowerCase();
+                    final room = t.roomId?.toString() ?? '';
+                    return name.contains(_idSearchQuery) ||
+                        room.contains(_idSearchQuery);
+                  }).toList();
+                }
+
+                if (tenants.isEmpty) {
+                  return _buildEmptyIdsState(context, _idSearchQuery.isNotEmpty);
+                }
+
+                if (isDesktop) {
+                  return _buildDesktopIdsTable(context, ref, tenants, buildingId);
+                }
+                return _buildMobileIdsList(context, ref, tenants, buildingId);
+              },
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyIdsState(BuildContext context, bool hasSearch) {
+    return ListView(
+      children: [
+        SizedBox(height: MediaQuery.of(context).size.height * 0.25),
+        Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.badge_outlined, size: 64, color: Colors.grey[400]),
+              const SizedBox(height: 16),
+              Text(
+                hasSearch ? 'No tenants match your search' : 'No tenants yet',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: Colors.grey[600],
+                    ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                hasSearch
+                    ? 'Try searching by a different name or room number'
+                    : 'Add a tenant first, then attach their ID card here',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Colors.grey[500],
+                    ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Desktop: ID Cards table ─────────────────────────────
+
+  Widget _buildDesktopIdsTable(BuildContext context, WidgetRef ref,
+      List<Tenant> tenants, int buildingId) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Card(
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: DataTable(
+            columns: const [
+              DataColumn(label: Text('Tenant Name')),
+              DataColumn(label: Text('Phone')),
+              DataColumn(label: Text('Room')),
+              DataColumn(label: Text('ID Front')),
+              DataColumn(label: Text('ID Back')),
+              DataColumn(label: Text('Actions')),
+            ],
+            rows: tenants.map((tenant) {
+              return DataRow(
+                cells: [
+                  DataCell(Text(tenant.name,
+                      style: const TextStyle(fontWeight: FontWeight.bold))),
+                  DataCell(Text(tenant.phone)),
+                  DataCell(Text(tenant.roomId?.toString() ?? '-')),
+                  DataCell(_buildIdCell(context, ref, tenant, 'front', buildingId)),
+                  DataCell(_buildIdCell(context, ref, tenant, 'back', buildingId)),
+                  DataCell(Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      InkWell(
+                        onTap: () => _callTenant(tenant.phone),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.call, size: 16, color: Colors.green),
+                              SizedBox(width: 4),
+                              Text('Call', style: TextStyle(color: Colors.green, fontWeight: FontWeight.w500)),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.credit_card,
+                            size: 20, color: Colors.indigo),
+                        tooltip: 'Add / Edit ID',
+                        onPressed: () =>
+                            _showTenantIdDialog(context, ref, tenant, buildingId),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.edit, size: 20),
+                        tooltip: 'Edit',
+                        onPressed: () =>
+                            _showAddEditDialog(context, ref, tenant: tenant),
+                      ),
+                    ],
+                  )),
+                ],
+              );
+            }).toList(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Mobile: ID Cards list ───────────────────────────────
+
+  Widget _buildMobileIdsList(BuildContext context, WidgetRef ref,
+      List<Tenant> tenants, int buildingId) {
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: tenants.length,
+      itemBuilder: (context, index) {
+        final tenant = tenants[index];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          elevation: 2,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header: name + room
+                Row(
+                  children: [
+                    _buildGenderIcon(tenant.gender),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        tenant.name,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                      ),
+                    ),
+                    Icon(Icons.badge_outlined, color: Colors.indigo[600], size: 24),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(Icons.meeting_room, size: 18, color: Colors.grey[600]),
+                    const SizedBox(width: 8),
+                    Text(
+                      tenant.roomId != null ? 'Room ${tenant.roomId}' : 'No room assigned',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // Front + Back side tiles
+                Row(
+                  children: [
+                    Expanded(child: _buildIdSideTile(context, ref, tenant, 'front', buildingId)),
+                    const SizedBox(width: 12),
+                    Expanded(child: _buildIdSideTile(context, ref, tenant, 'back', buildingId)),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // Action buttons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton.icon(
+                      onPressed: () => _callTenant(tenant.phone),
+                      icon: const Icon(Icons.call, size: 18, color: Colors.green),
+                      label: const Text('Call', style: TextStyle(color: Colors.green)),
+                    ),
+                    const SizedBox(width: 8),
+                    TextButton.icon(
+                      onPressed: () =>
+                          _showTenantIdDialog(context, ref, tenant, buildingId),
+                      icon: const Icon(Icons.credit_card, size: 18, color: Colors.indigo),
+                      label: const Text('Add / Edit ID',
+                          style: TextStyle(color: Colors.indigo)),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // ID front/back cell for the desktop table
+  Widget _buildIdCell(BuildContext context, WidgetRef ref, Tenant tenant,
+      String side, int buildingId) {
+    final url = _idOf(tenant, side);
+    if (url != null && url.isNotEmpty) {
+      return InkWell(
+        onTap: () => _previewImage(context, url),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: Image.network(
+            url,
+            width: 64,
+            height: 44,
+            fit: BoxFit.cover,
+            errorBuilder: (_, _, _) => _buildAddIdChip(tenant, side),
+          ),
+        ),
+      );
+    }
+    return _buildAddIdChip(tenant, side);
+  }
+
+  // ID front/back tile for the mobile list
+  Widget _buildIdSideTile(BuildContext context, WidgetRef ref, Tenant tenant,
+      String side, int buildingId) {
+    final url = _idOf(tenant, side);
+    final isBack = side == 'back';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          isBack ? 'Back (optional)' : 'Front',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey[600],
+          ),
+        ),
+        const SizedBox(height: 6),
+        if (url != null && url.isNotEmpty)
+          InkWell(
+            onTap: () => _previewImage(context, url),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.network(
+                url,
+                width: double.infinity,
+                height: 110,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => _buildAddIdChip(tenant, side),
+              ),
+            ),
+          )
+        else
+          InkWell(
+            onTap: () => _showTenantIdDialog(context, ref, tenant, buildingId),
+            child: Container(
+              height: 110,
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade300, width: 1.5),
+              ),
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.add_a_photo_outlined,
+                        color: Colors.grey.shade500, size: 26),
+                    const SizedBox(height: 6),
+                    Text(
+                      isBack ? 'Add Back' : 'Add Front',
+                      style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildAddIdChip(Tenant tenant, String side) {
+    return InkWell(
+      onTap: () => _showTenantIdDialog(
+          context, ref, tenant, ref.read(currentBuildingIdProvider)),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.indigo.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.indigo.withValues(alpha: 0.4)),
+        ),
+        child: Text(
+          side == 'back' ? 'Add back' : 'Add front',
+          style: const TextStyle(color: Colors.indigo, fontWeight: FontWeight.w500, fontSize: 12),
+        ),
+      ),
+    );
+  }
+
+  String? _idOf(Tenant tenant, String side) {
+    return side == 'front' ? tenant.idFrontUrl : tenant.idBackUrl;
+  }
+
+  void _showTenantIdDialog(BuildContext context, WidgetRef ref,
+      Tenant tenant, int buildingId) {
+    showDialog(
+      context: context,
+      builder: (ctx) => _TenantIdDialog(
+        tenant: tenant,
+        onDone: (picks, removeSides) async {
+          final repo = ref.read(supabaseRepositoryProvider);
+          try {
+            // Remove sides requested for deletion first
+            for (final side in removeSides) {
+              await repo.removeTenantIdCard(tenant.id, side);
+            }
+            // Upload new / replaced images
+            for (final entry in picks.entries) {
+              final sel = entry.value;
+              await repo.uploadTenantIdCard(
+                tenantId: tenant.id,
+                side: entry.key,
+                fileBytes: sel.bytes,
+                fileExtension: sel.ext,
+              );
+            }
+            ref.invalidate(tenantsStreamProvider(buildingId));
+            if (ctx.mounted) {
+              Navigator.of(ctx).pop();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('ID card saved'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            }
+          } catch (e) {
+            if (ctx.mounted) {
+              ScaffoldMessenger.of(ctx).showSnackBar(
+                SnackBar(
+                  content: Text('Error saving ID card: $e'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          }
+        },
+      ),
+    );
+  }
+
+  void _previewImage(BuildContext context, String url) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.black,
+        child: InteractiveViewer(
+          maxScale: 5,
+          child: Image.network(
+            url,
+            fit: BoxFit.contain,
+            errorBuilder: (_, _, _) => const SizedBox(
+              width: 200,
+              height: 300,
+              child: Center(
+                child: Text('Could not load image',
+                    style: TextStyle(color: Colors.white)),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -1130,13 +1592,24 @@ class _TenantsScreenState extends ConsumerState<TenantsScreen> with SingleTicker
       context: context,
       builder: (ctx) => _TenantFormDialog(
         tenant: tenant,
-        onSave: (Tenant savedTenant) async {
+        onSave: (Tenant savedTenant,
+            Map<String, _IdImageSelection> pendingIdImages) async {
           final repo = ref.read(supabaseRepositoryProvider);
           try {
+            Tenant result;
             if (tenant == null) {
-              await repo.addTenant(savedTenant);
+              result = await repo.addTenant(savedTenant);
             } else {
-              await repo.updateTenant(savedTenant);
+              result = await repo.updateTenant(savedTenant);
+            }
+            // Upload any ID card images picked in the form
+            for (final entry in pendingIdImages.entries) {
+              await repo.uploadTenantIdCard(
+                tenantId: result.id,
+                side: entry.key,
+                fileBytes: entry.value.bytes,
+                fileExtension: entry.value.ext,
+              );
             }
             if (ctx.mounted) {
               Navigator.of(ctx).pop();
@@ -1235,7 +1708,7 @@ class _TenantsScreenState extends ConsumerState<TenantsScreen> with SingleTicker
 
 class _TenantFormDialog extends StatefulWidget {
   final Tenant? tenant;
-  final Function(Tenant) onSave;
+  final void Function(Tenant, Map<String, _IdImageSelection>) onSave;
 
   const _TenantFormDialog({this.tenant, required this.onSave});
 
@@ -1257,6 +1730,10 @@ class _TenantFormDialogState extends State<_TenantFormDialog> {
   String _selectedStatus = 'active';
   DateTime? _selectedDueDate;
   bool _hasCar = false;
+
+  // Freshly picked ID card images (uploaded after tenant is saved)
+  _IdImageSelection? _idFrontNew;
+  _IdImageSelection? _idBackNew;
 
   static const List<String> _genders = ['male', 'female'];
   static const List<String> _paymentStatuses = ['paid', 'unpaid'];
@@ -1293,6 +1770,161 @@ class _TenantFormDialogState extends State<_TenantFormDialog> {
     _carModelController.dispose();
     _licensePlateController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickIdImage(String side) async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Choose from gallery'),
+              onTap: () => Navigator.of(ctx).pop(ImageSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Take a photo'),
+              onTap: () => Navigator.of(ctx).pop(ImageSource.camera),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null) return;
+
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: source,
+      maxWidth: 2048,
+      maxHeight: 2048,
+      imageQuality: 85,
+    );
+    if (picked == null || !mounted) return;
+
+    final name = picked.name;
+    final ext =
+        name.contains('.') ? name.split('.').last.toLowerCase() : 'jpg';
+    if (ext != 'png' && ext != 'jpg' && ext != 'jpeg') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Only PNG and JPG images are allowed'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    final bytes = await picked.readAsBytes();
+    if (!mounted) return;
+    setState(() {
+      final sel = _IdImageSelection(bytes, ext);
+      if (side == 'front') {
+        _idFrontNew = sel;
+      } else {
+        _idBackNew = sel;
+      }
+    });
+  }
+
+  Widget _buildFormIdSection() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              const Icon(Icons.badge_outlined, color: Colors.indigo),
+              const SizedBox(width: 8),
+              Text('National ID Card',
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.bold)),
+            ]),
+            const SizedBox(height: 4),
+            Text(
+              'Attach the tenant\'s national ID. Back is optional.',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 12),
+            _buildFormIdSide(
+              side: 'front',
+              title: 'Front',
+              newSel: _idFrontNew,
+              existingUrl: widget.tenant?.idFrontUrl,
+            ),
+            const SizedBox(height: 12),
+            _buildFormIdSide(
+              side: 'back',
+              title: 'Back (optional)',
+              newSel: _idBackNew,
+              existingUrl: widget.tenant?.idBackUrl,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFormIdSide(
+      {required String side,
+      required String title,
+      required _IdImageSelection? newSel,
+      required String? existingUrl}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title,
+            style: TextStyle(
+                fontWeight: FontWeight.w600, color: Colors.grey[700])),
+        const SizedBox(height: 8),
+        if (newSel != null)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.memory(
+              newSel.bytes,
+              height: 90,
+              width: double.infinity,
+              fit: BoxFit.cover,
+            ),
+          )
+        else if (existingUrl != null && existingUrl.isNotEmpty)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.network(
+              existingUrl,
+              height: 90,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => const SizedBox(height: 90),
+            ),
+          )
+        else
+          Container(
+            height: 90,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: Center(
+                child: Icon(Icons.upload_outlined, color: Colors.grey[500])),
+          ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed: () => _pickIdImage(side),
+          icon: Icon(newSel == null ? Icons.upload : Icons.refresh),
+          label: Text(newSel == null ? 'Choose image' : 'Replace'),
+        ),
+      ],
+    );
   }
 
   @override
@@ -1505,6 +2137,10 @@ class _TenantFormDialogState extends State<_TenantFormDialog> {
                 ),
                 const SizedBox(height: 16),
 
+                // ID Card Section (optional upload)
+                _buildFormIdSection(),
+                const SizedBox(height: 16),
+
                 // Payment Status Dropdown
                 DropdownButtonFormField<String>(
                   value: _selectedPaymentStatus,
@@ -1644,12 +2280,322 @@ class _TenantFormDialogState extends State<_TenantFormDialog> {
                 licensePlate: _hasCar && _licensePlateController.text.trim().isNotEmpty
                     ? _licensePlateController.text.trim().toUpperCase()
                     : null,
+                idFrontUrl: widget.tenant?.idFrontUrl,
+                idBackUrl: widget.tenant?.idBackUrl,
               );
-              widget.onSave(tenant);
+              // Carry any freshly picked ID card images to upload after save
+              final pendingIdImages = <String, _IdImageSelection>{};
+              if (_idFrontNew != null) pendingIdImages['front'] = _idFrontNew!;
+              if (_idBackNew != null) pendingIdImages['back'] = _idBackNew!;
+              widget.onSave(tenant, pendingIdImages);
             }
           },
           child: Text(isEditing ? 'Update' : 'Add'),
         ),
+      ],
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// ID CARD DATA + DIALOG
+// ══════════════════════════════════════════════════════
+
+/// Holds a freshly picked ID card image (bytes + extension) before upload.
+class _IdImageSelection {
+  final Uint8List bytes;
+  final String ext;
+  const _IdImageSelection(this.bytes, this.ext);
+}
+
+class _TenantIdDialog extends StatefulWidget {
+  final Tenant tenant;
+  /// Runs when Save is pressed.
+  /// [picks]: side ('front'|'back') -> newly-selected image to upload.
+  /// [removeSides]: sides whose existing image should be removed.
+  final Future<void> Function(
+      Map<String, _IdImageSelection> picks, Set<String> removeSides) onDone;
+
+  const _TenantIdDialog({required this.tenant, required this.onDone});
+
+  @override
+  State<_TenantIdDialog> createState() => _TenantIdDialogState();
+}
+
+class _TenantIdDialogState extends State<_TenantIdDialog> {
+  bool _saving = false;
+  // Newly picked images (pending upload)
+  _IdImageSelection? _frontNew;
+  _IdImageSelection? _backNew;
+  // Sides to remove from storage on save
+  final Set<String> _removeSides = {};
+
+  String? get _existingFront => widget.tenant.idFrontUrl;
+  String? get _existingBack => widget.tenant.idBackUrl;
+
+  Future<void> _pickImage(String side) async {
+    final gallery = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Choose from gallery'),
+              onTap: () => Navigator.of(ctx).pop(ImageSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Take a photo'),
+              onTap: () => Navigator.of(ctx).pop(ImageSource.camera),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (gallery == null) return;
+
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: gallery,
+      maxWidth: 2048,
+      maxHeight: 2048,
+      imageQuality: 85,
+    );
+    if (picked == null || !mounted) return;
+
+    final name = picked.name;
+    final ext = name.contains('.')
+        ? name.split('.').last.toLowerCase()
+        : 'jpg';
+    if (ext != 'png' && ext != 'jpg' && ext != 'jpeg') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Only PNG and JPG images are allowed'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final bytes = await picked.readAsBytes();
+    if (!mounted) return;
+    setState(() {
+      final sel = _IdImageSelection(bytes, ext);
+      if (side == 'front') {
+        _frontNew = sel;
+      } else {
+        _backNew = sel;
+      }
+      _removeSides.remove(side);
+    });
+  }
+
+  Future<void> _save() async {
+    // Reset remove flags for sides that now have a new image
+    if (_frontNew != null) _removeSides.remove('front');
+    if (_backNew != null) _removeSides.remove('back');
+
+    final picks = <String, _IdImageSelection>{};
+    if (_frontNew != null) picks['front'] = _frontNew!;
+    if (_backNew != null) picks['back'] = _backNew!;
+
+    if (picks.isEmpty && _removeSides.isEmpty) {
+      Navigator.of(context).pop();
+      return;
+    }
+
+    setState(() => _saving = true);
+    try {
+      await widget.onDone(picks, _removeSides);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Widget _buildSideTile({
+    required String side,
+    required String title,
+    required String subtitle,
+    required _IdImageSelection? newSel,
+    required String? existingUrl,
+    required bool isBack,
+  }) {
+    return Card(
+      elevation: 1,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  isBack ? Icons.filter_none : Icons.badge_outlined,
+                  color: Colors.indigo,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 15),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(subtitle,
+                style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+            const SizedBox(height: 12),
+            // Preview: new selection takes priority over existing image
+            if (newSel != null)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.memory(
+                  newSel.bytes,
+                  height: 120,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                ),
+              )
+            else if (existingUrl != null && existingUrl.isNotEmpty)
+              InkWell(
+                onTap: () => _previewExisting(existingUrl),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    existingUrl,
+                    height: 120,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => Container(
+                      height: 120,
+                      color: Colors.grey[100],
+                      alignment: Alignment.center,
+                      child: const Text('Could not load image'),
+                    ),
+                  ),
+                ),
+              )
+            else
+              Container(
+                height: 120,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  isBack ? 'No back image yet (optional)' : 'No front image yet',
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
+              ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _saving ? null : () => _pickImage(side),
+                  icon: Icon(newSel == null
+                      ? Icons.upload
+                      : Icons.refresh),
+                  label: Text(existingUrl != null && existingUrl.isNotEmpty
+                      ? 'Replace'
+                      : 'Upload'),
+                ),
+                const Spacer(),
+                if ((newSel != null) || (existingUrl != null && existingUrl.isNotEmpty))
+                  TextButton.icon(
+                    onPressed: _saving
+                        ? null
+                        : () {
+                            setState(() {
+                              if (side == 'front') {
+                                _frontNew = null;
+                              } else {
+                                _backNew = null;
+                              }
+                              if (existingUrl != null &&
+                                  existingUrl.isNotEmpty) {
+                                _removeSides.add(side);
+                              }
+                            });
+                          },
+                    icon: const Icon(Icons.delete_outline, size: 18, color: Colors.red),
+                    label: const Text('Remove',
+                        style: TextStyle(color: Colors.red)),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ));
+  }
+
+  void _previewExisting(String url) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.black,
+        child: InteractiveViewer(
+          maxScale: 5,
+          child: Image.network(url, fit: BoxFit.contain),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('ID Card — ${widget.tenant.name}'),
+      content: SizedBox(
+        width: 460,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildSideTile(
+                side: 'front',
+                title: 'Front (required)',
+                subtitle: 'Personal photo and details side',
+                newSel: _frontNew,
+                existingUrl: _existingFront,
+                isBack: false,
+              ),
+              const SizedBox(height: 12),
+              _buildSideTile(
+                side: 'back',
+                title: 'Back (optional)',
+                subtitle: 'Second side of the card',
+                newSel: _backNew,
+                existingUrl: _existingBack,
+                isBack: true,
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _saving ? null : () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        if (_saving)
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: SizedBox(
+                width: 20, height: 20, child: CircularProgressIndicator()),
+          )
+        else
+          FilledButton.icon(
+            onPressed: _save,
+            icon: const Icon(Icons.save_outlined),
+            label: const Text('Save'),
+          ),
       ],
     );
   }

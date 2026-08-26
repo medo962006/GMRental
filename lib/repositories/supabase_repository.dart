@@ -137,6 +137,8 @@ class SupabaseRepository {
       'has_car': tenant.hasCar,
       'car_model': tenant.carModel,
       'license_plate': tenant.licensePlate,
+      'id_front_url': tenant.idFrontUrl,
+      'id_back_url': tenant.idBackUrl,
     };
 
     final data = await _client.from('tenants').insert(insertData).select().single();
@@ -182,6 +184,8 @@ class SupabaseRepository {
       'has_car': tenant.hasCar,
       'car_model': tenant.carModel,
       'license_plate': tenant.licensePlate,
+      'id_front_url': tenant.idFrontUrl,
+      'id_back_url': tenant.idBackUrl,
     }).eq('id', tenant.id).select().single();
 
     final updated = Tenant.fromJson(data);
@@ -424,6 +428,80 @@ class SupabaseRepository {
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
+  // ════════════════════════════════════════════════════════
+  // TENANT ID CARDS (storage)
+  // ════════════════════════════════════════════════════════
+
+  static const String _idBucket = 'tenant-ids';
+
+  /// Uploads a tenant national ID card image (front or back) to Supabase
+  /// Storage, then stores its public URL on the tenant row.
+  /// [side] must be 'front' or 'back'.
+  /// Returns the public URL of the uploaded image.
+  Future<String> uploadTenantIdCard({
+    required String tenantId,
+    required String side,
+    required List<int> fileBytes,
+    required String fileExtension,
+  }) async {
+    if (side != 'front' && side != 'back') {
+      throw Exception('Invalid ID card side: $side');
+    }
+    validateReceiptFile(fileBytes.length, fileExtension);
+
+    final ext = fileExtension.toLowerCase() == 'jpeg' ? 'jpg' : fileExtension.toLowerCase();
+    final filePath = '$tenantId-$side.$ext';
+
+    await _client.storage.from(_idBucket).uploadBinary(
+      filePath,
+      Uint8List.fromList(fileBytes),
+      fileOptions: FileOptions(
+        contentType: ext == 'png' ? 'image/png' : 'image/jpeg',
+        upsert: true,
+      ),
+    );
+
+    final publicUrl = _client.storage.from(_idBucket).getPublicUrl(filePath);
+
+    await setTenantIdCardUrl(tenantId,
+        idFrontUrl: side == 'front' ? publicUrl : null,
+        idBackUrl: side == 'back' ? publicUrl : null);
+
+    return publicUrl;
+  }
+
+  /// Updates just the ID card URL column(s) on a tenant without touching the
+  /// rest of the row. Pass only the side(s) being changed.
+  Future<void> setTenantIdCardUrl(
+    String tenantId, {
+    String? idFrontUrl,
+    String? idBackUrl,
+  }) async {
+    final payload = <String, dynamic>{};
+    if (idFrontUrl != null) payload['id_front_url'] = idFrontUrl;
+    if (idBackUrl != null) payload['id_back_url'] = idBackUrl;
+    if (payload.isEmpty) return;
+    await _client.from('tenants').update(payload).eq('id', tenantId);
+  }
+
+  /// Removes a tenant ID card image (front or back) from storage and nulls the
+  /// matching column. [side] must be 'front' or 'back'.
+  Future<void> removeTenantIdCard(String tenantId, String side) async {
+    if (side != 'front' && side != 'back') return;
+    final files = <String>[];
+    for (final ext in ['png', 'jpg']) {
+      files.add('$tenantId-$side.$ext');
+    }
+    try {
+      await _client.storage.from(_idBucket).remove(files);
+    } catch (_) {
+      // File might not exist — that's fine
+    }
+    await setTenantIdCardUrl(tenantId,
+        idFrontUrl: side == 'front' ? '' : null,
+        idBackUrl: side == 'back' ? '' : null);
   }
 
   // ════════════════════════════════════════════════════════

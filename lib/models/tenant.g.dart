@@ -27,6 +27,8 @@ Tenant _$TenantFromJson(Map<String, dynamic> json) => Tenant(
   hasCar: json['has_car'] as bool? ?? false,
   carModel: json['car_model'] as String?,
   licensePlate: json['license_plate'] as String?,
+  idFrontUrl: json['id_front_url'] as String?,
+  idBackUrl: json['id_back_url'] as String?,
 );
 
 Map<String, dynamic> _$TenantToJson(Tenant instance) => <String, dynamic>{
@@ -46,4 +48,6 @@ Map<String, dynamic> _$TenantToJson(Tenant instance) => <String, dynamic>{
   'has_car': instance.hasCar,
   'car_model': instance.carModel,
   'license_plate': instance.licensePlate,
+  'id_front_url': instance.idFrontUrl,
+  'id_back_url': instance.idBackUrl,
 };

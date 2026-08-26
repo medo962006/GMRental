@@ -35,6 +35,12 @@ class Tenant {
   @JsonKey(name: 'license_plate')
   final String? licensePlate;
 
+  // National ID card images (back is optional)
+  @JsonKey(name: 'id_front_url')
+  final String? idFrontUrl;
+  @JsonKey(name: 'id_back_url')
+  final String? idBackUrl;
+
   const Tenant({
     required this.id,
     required this.name,
@@ -52,6 +58,8 @@ class Tenant {
     this.hasCar = false,
     this.carModel,
     this.licensePlate,
+    this.idFrontUrl,
+    this.idBackUrl,
   });
 
   factory Tenant.fromJson(Map<String, dynamic> json) => _$TenantFromJson(json);
@@ -74,6 +82,8 @@ class Tenant {
     bool? hasCar,
     String? carModel,
     String? licensePlate,
+    String? idFrontUrl,
+    String? idBackUrl,
   }) {
     return Tenant(
       id: id ?? this.id,
@@ -92,6 +102,8 @@ class Tenant {
       hasCar: hasCar ?? this.hasCar,
       carModel: carModel ?? this.carModel,
       licensePlate: licensePlate ?? this.licensePlate,
+      idFrontUrl: idFrontUrl ?? this.idFrontUrl,
+      idBackUrl: idBackUrl ?? this.idBackUrl,
     );
   }
 
