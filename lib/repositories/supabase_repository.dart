@@ -278,13 +278,11 @@ class SupabaseRepository {
   }
 
   Future<void> markTenantUnpaid(String id) async {
-    // Set due_date to today so it's immediately overdue
-    final today = DateTime.now();
-    final newDue = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
-
+    // Mark unpaid but KEEP the original due_date so the next payment date
+    // stays anchored to the tenant's payment day-of-month (e.g. paying late
+    // on the 11th still rolls to the 5th of next month, not the 11th).
     await _client.from('tenants').update({
       'payment_status': 'unpaid',
-      'due_date': newDue,
     }).eq('id', id);
   }
 
@@ -742,7 +740,6 @@ class SupabaseRepository {
             (data) => (data as List).map((e) => Tenant.fromJson(e)).toList());
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
     int updated = 0;
 
     for (final t in tenants) {
@@ -760,13 +757,6 @@ class SupabaseRepository {
         // due_date so the overdue count shows the actual days late.
         await _client.from('tenants').update({
           'payment_status': 'unpaid',
-        }).eq('id', t.id);
-        updated++;
-      } else if (t.isUnpaid && isPastDue) {
-        // Already unpaid but due_date is stale → reset due_date to today
-        // so overdue count resets from today (housekeeping).
-        await _client.from('tenants').update({
-          'due_date': todayStr,
         }).eq('id', t.id);
         updated++;
       }
