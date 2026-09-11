@@ -10,7 +10,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// SHA-256 hash of the app access password (no plaintext is stored, not even in comments).
 /// To rotate: replace with the sha256 hex digest of the new password.
-const String _appPasswordHash = '7c5b3a10721bf97ca100841e16e5618159bcada6df3f139cb04d519e58ccd097';
+const String _appPasswordHash = '5adf35833457515a322bbfe4ae4fc41ceceef79e7d965cf3138f1bbc56ee833a';
 
 /// Validates an app-access password attempt against the stored hash.
 bool verifyAppPassword(String input) =>
